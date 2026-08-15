@@ -60,7 +60,7 @@ impl crate::driver::BluetoothDriver for BluezDriver {
             Err(DriverError::NotFound) => Ok(None),
             Err(e) => Err(e),
         }
-    }
+    } 
 
     async fn events(&self) -> Result<BluezEvents, DriverError> {
         BluezEvents::new(self.connection.clone()).await
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn sorts_adapter_ids_numerically_not_lexicographically() {
-        let mut ids = vec![
+        let mut ids = [
             AdapterId::new("hci10"),
             AdapterId::new("hci2"),
             AdapterId::new("hci0"),

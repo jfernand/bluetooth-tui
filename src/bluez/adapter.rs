@@ -96,6 +96,7 @@ async fn list_devices(
             devices.push(device);
         }
     }
+    devices.sort_by_key(crate::driver::Device::address);
     Ok(devices)
 }
 
