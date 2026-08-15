@@ -530,7 +530,15 @@ impl App {
                     self.palette_buffer.pop();
                 }
                 KeyCode::Char(c) => self.palette_buffer.push(c),
-                KeyCode::Enter => self.overlay = Overlay::None,
+                KeyCode::Enter => {
+                    let cmd = PaletteCommand::filtered(&self.palette_buffer)
+                        .first()
+                        .map(|entry| entry.0);
+                    match cmd {
+                        Some(cmd) => self.run_palette_command(cmd).await,
+                        None => self.overlay = Overlay::None,
+                    }
+                }
                 _ => {}
             },
             Overlay::ConfirmForget => match key {
@@ -550,7 +558,16 @@ impl App {
         match self.focus {
             Focus::Adapters => {
                 if !self.adapters.is_empty() {
-                    self.adapter_idx = wrap_index(self.adapter_idx, delta, self.adapters.len());
+                    let new_idx = wrap_index(self.adapter_idx, delta, self.adapters.len());
+                    if new_idx != self.adapter_idx {
+                        self.adapter_idx = new_idx;
+                        // The device list belongs to the old adapter; drop
+                        // it immediately rather than showing stale data
+                        // from the wrong adapter until the next refresh.
+                        self.devices.clear();
+                        self.device_idx = 0;
+                        self.devices_dirty = true;
+                    }
                 }
             }
             Focus::Devices => {
@@ -694,6 +711,79 @@ impl App {
         };
         self.vendor_info = Some(VendorAttribution::compute(device).await);
         self.overlay = Overlay::Vendor;
+    }
+
+    async fn run_palette_command(&mut self, cmd: PaletteCommand) {
+        self.overlay = Overlay::None;
+        match cmd {
+            PaletteCommand::Trust => self.set_trusted_selected(true).await,
+            PaletteCommand::Untrust => self.set_trusted_selected(false).await,
+            PaletteCommand::Block => self.set_blocked_selected(true).await,
+            PaletteCommand::Unblock => self.set_blocked_selected(false).await,
+            PaletteCommand::Pair => self.pair_selected().await,
+            PaletteCommand::Connect => self.toggle_connection().await,
+            // Forget always confirms first, same as the 'F' key.
+            PaletteCommand::Forget => self.overlay = Overlay::ConfirmForget,
+            PaletteCommand::Alias => self.begin_alias_edit(),
+            PaletteCommand::ScanToggle => self.toggle_scan().await,
+            PaletteCommand::Refresh => self.refresh_devices().await,
+            PaletteCommand::Events => {
+                self.screen = Screen::EventLog;
+                self.unseen_events = 0;
+            }
+            PaletteCommand::AdapterControl => self.screen = Screen::AdapterControl,
+            PaletteCommand::Help => self.overlay = Overlay::Help,
+            PaletteCommand::Quit => self.should_quit = true,
+        }
+    }
+}
+
+/// A command palette entry: the command itself, its name (what `/`-style
+/// substring matching runs against), a description, and the equivalent
+/// direct keybinding if it has one.
+pub struct PaletteEntry(pub PaletteCommand, pub &'static str, pub &'static str, pub Option<&'static str>);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PaletteCommand {
+    Trust,
+    Untrust,
+    Block,
+    Unblock,
+    Pair,
+    Connect,
+    Forget,
+    Alias,
+    ScanToggle,
+    Refresh,
+    Events,
+    AdapterControl,
+    Help,
+    Quit,
+}
+
+impl PaletteCommand {
+    const ALL: &'static [PaletteEntry] = &[
+        PaletteEntry(Self::Trust, "trust", "Mark selected device trusted", Some("t")),
+        PaletteEntry(Self::Untrust, "untrust", "Remove trust - auto-reconnect stops", Some("T")),
+        PaletteEntry(Self::Block, "block", "Block the selected device", Some("b")),
+        PaletteEntry(Self::Unblock, "unblock", "Unblock the selected device", Some("B")),
+        PaletteEntry(Self::Pair, "pair", "Pair with the selected device", Some("p")),
+        PaletteEntry(Self::Connect, "connect", "Connect/disconnect the selected device", Some("↵")),
+        PaletteEntry(Self::Forget, "forget", "Forget the selected device (removes keys)", Some("F")),
+        PaletteEntry(Self::Alias, "alias", "Edit the selected device's alias", Some("a")),
+        PaletteEntry(Self::ScanToggle, "scan", "Start/stop discovery", Some("s")),
+        PaletteEntry(Self::Refresh, "refresh", "Refresh the device list", Some("r")),
+        PaletteEntry(Self::Events, "events", "Open the event log", Some("e")),
+        PaletteEntry(Self::AdapterControl, "adapter", "Open adapter control", Some("A")),
+        PaletteEntry(Self::Help, "help", "Show the keymap", Some("?")),
+        PaletteEntry(Self::Quit, "quit", "Quit bluetooth-tui", Some("q")),
+    ];
+
+    /// Commands whose name contains `query`, case-insensitively. An empty
+    /// query matches everything.
+    pub fn filtered(query: &str) -> Vec<&'static PaletteEntry> {
+        let query = query.to_lowercase();
+        Self::ALL.iter().filter(|entry| entry.1.contains(&query)).collect()
     }
 }
 

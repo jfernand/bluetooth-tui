@@ -157,7 +157,12 @@ pub fn draw_confirm_forget(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 pub fn draw_palette(frame: &mut Frame, app: &App, area: Rect) {
-    let modal = super::centered_rect(66, 4, area);
+    let matches = crate::tui::app::PaletteCommand::filtered(&app.palette_buffer);
+
+    // Content is one input line plus one line per match (or one "no
+    // matching command" line), plus two rows for the top/bottom border.
+    let content_lines = 1 + matches.len().max(1) as u16;
+    let modal = super::centered_rect(66, (content_lines + 2).min(16), area);
     frame.render_widget(Clear, modal);
 
     let block = Block::default()
@@ -167,12 +172,36 @@ pub fn draw_palette(frame: &mut Frame, app: &App, area: Rect) {
     let inner = block.inner(modal);
     frame.render_widget(block, modal);
 
-    let line = Line::from(vec![
+    let mut lines = vec![Line::from(vec![
         Span::styled(": ", Style::default().fg(theme::AMBER)),
         Span::styled(
             format!("{}█", app.palette_buffer),
             Style::default().fg(theme::TEXT_PRIMARY),
         ),
-    ]);
-    frame.render_widget(Paragraph::new(line), inner);
+        Span::raw("   "),
+        widgets::muted_value(format!("{} matches", matches.len())),
+    ])];
+
+    for (i, entry) in matches.iter().enumerate() {
+        let name_style = if i == 0 {
+            Style::default().fg(theme::ON_AMBER).bg(theme::AMBER)
+        } else {
+            Style::default().fg(theme::TEXT_PRIMARY)
+        };
+        let mut spans = vec![
+            Span::styled(format!("{:<16}", entry.1), name_style),
+            Span::raw(" "),
+            Span::styled(entry.2, Style::default().fg(theme::TEXT_SECONDARY)),
+        ];
+        if let Some(hint) = entry.3 {
+            spans.push(Span::raw("  "));
+            spans.push(Span::styled(hint, Style::default().fg(theme::TEXT_MUTED)));
+        }
+        lines.push(Line::from(spans));
+    }
+    if matches.is_empty() {
+        lines.push(Line::from(widgets::muted_value("no matching command")));
+    }
+
+    frame.render_widget(Paragraph::new(lines), inner);
 }
