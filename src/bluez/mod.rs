@@ -13,3 +13,7 @@ mod error;
 mod path;
 mod properties;
 mod proxy;
+
+pub mod device;
+
+pub use device::BluezDevice;
