@@ -10,4 +10,6 @@
 #![allow(dead_code)]
 
 mod error;
+mod path;
+mod properties;
 mod proxy;
