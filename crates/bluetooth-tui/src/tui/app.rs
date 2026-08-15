@@ -233,6 +233,10 @@ pub struct App {
     /// this is a timestamp of the last DeviceFound/DeviceUpdated event
     /// per address, on the current adapter only.
     pub last_seen: HashMap<Address, Instant>,
+    /// Set the first time a D-Bus call times out (bluetoothd not
+    /// answering - a restart is the common case) and cleared the next
+    /// time any call succeeds; drives the header's warning badge.
+    pub bluez_unresponsive_since: Option<Instant>,
     pub devices_dirty: bool,
     pub should_quit: bool,
 }
@@ -283,6 +287,7 @@ impl App {
             full_info_for: None,
             full_info_checked_at: None,
             last_seen: HashMap::new(),
+            bluez_unresponsive_since: None,
             devices_dirty: false,
             should_quit: false,
         };
@@ -359,15 +364,36 @@ impl App {
         });
     }
 
+    fn note_bluez_timeout(&mut self) {
+        self.bluez_unresponsive_since.get_or_insert_with(Instant::now);
+    }
+
+    fn note_bluez_ok(&mut self) {
+        self.bluez_unresponsive_since = None;
+    }
+
     async fn refresh_devices(&mut self) {
         let Some(adapter) = self.adapters.get(self.adapter_idx) else {
             return;
         };
         match adapter.devices().await {
-            Ok(devices) => self.devices = devices,
-            Err(e) => self.set_status_err("REFRESH FAILED", &e),
+            Ok(devices) => {
+                self.devices = devices;
+                self.devices_dirty = false;
+                self.note_bluez_ok();
+            }
+            Err(DriverError::Timeout) => {
+                // Leave devices_dirty set so the next tick (250ms) retries
+                // automatically - bluetoothd not answering is usually
+                // transient (a restart), and there's no other event to
+                // wait for while it's down.
+                self.note_bluez_timeout();
+            }
+            Err(e) => {
+                self.devices_dirty = false;
+                self.set_status_err("REFRESH FAILED", &e);
+            }
         }
-        self.devices_dirty = false;
         // Keep the same device selected by address across the refresh -
         // RSSI (and therefore visible_device_indices()'s sort order)
         // changes constantly during an active scan.
@@ -418,14 +444,41 @@ impl App {
 
         self.full_info_for = Some(address);
         self.full_info_checked_at = Some(Instant::now());
-        self.full_info = match self.selected_device() {
-            Some(device) => {
-                let device_info = device.device_information().await.unwrap_or_default();
-                let pnp_id = device.pnp_id().await.ok().flatten();
-                Some(FullDeviceInfo { device_info, pnp_id })
+
+        // Each `self.selected_device()` call's borrow ends with the
+        // expression it's used in, so it never overlaps the `&mut self`
+        // calls to note_bluez_*() below.
+        let device_info_result = match self.selected_device() {
+            Some(device) => device.device_information().await,
+            None => {
+                self.full_info = None;
+                return;
             }
-            None => None,
         };
+
+        match device_info_result {
+            Ok(device_info) => {
+                self.note_bluez_ok();
+                let pnp_result = match self.selected_device() {
+                    Some(device) => Some(device.pnp_id().await),
+                    None => None,
+                };
+                let pnp_id = match pnp_result {
+                    Some(Ok(id)) => {
+                        self.note_bluez_ok();
+                        id
+                    }
+                    Some(Err(DriverError::Timeout)) => {
+                        self.note_bluez_timeout();
+                        None
+                    }
+                    Some(Err(_)) | None => None,
+                };
+                self.full_info = Some(FullDeviceInfo { device_info, pnp_id });
+            }
+            Err(DriverError::Timeout) => self.note_bluez_timeout(),
+            Err(_) => {}
+        }
     }
 
     async fn refresh_battery_if_needed(&mut self) {
@@ -456,9 +509,20 @@ impl App {
 
         self.battery_for = Some(address);
         self.battery_checked_at = Some(Instant::now());
-        self.battery = match self.selected_device() {
-            Some(device) => device.battery_percent().await.ok().flatten(),
+        let result = match self.selected_device() {
+            Some(device) => Some(device.battery_percent().await),
             None => None,
+        };
+        self.battery = match result {
+            Some(Ok(percent)) => {
+                self.note_bluez_ok();
+                percent
+            }
+            Some(Err(DriverError::Timeout)) => {
+                self.note_bluez_timeout();
+                None
+            }
+            Some(Err(_)) | None => None,
         };
     }
 
@@ -475,8 +539,14 @@ impl App {
                 }
                 DriverEvent::DeviceRemoved { .. } => self.devices_dirty = true,
                 DriverEvent::PoweredChanged { .. } | DriverEvent::DiscoveringChanged { .. } => {
-                    if let Some(adapter) = self.adapters.get_mut(self.adapter_idx) {
-                        let _ = adapter.refresh().await;
+                    let result = match self.adapters.get_mut(self.adapter_idx) {
+                        Some(adapter) => Some(adapter.refresh().await),
+                        None => None,
+                    };
+                    match result {
+                        Some(Ok(())) => self.note_bluez_ok(),
+                        Some(Err(DriverError::Timeout)) => self.note_bluez_timeout(),
+                        Some(Err(_)) | None => {}
                     }
                 }
                 DriverEvent::AdapterAdded(_) | DriverEvent::AdapterRemoved(_) => {}
