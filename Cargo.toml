@@ -4,3 +4,23 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+
+# Fast iteration: keep our own crate unoptimized (cheap to recompile),
+# but build dependencies at opt-level 3 once and reuse them.
+[profile.dev]
+opt-level = 0
+debug = "line-tables-only"
+incremental = true
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+opt-level = 3
+
+# Fastest runtime binary: full LTO + single codegen unit, no unwinding
+# machinery, symbols stripped. Release builds will be slower to compile.
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
