@@ -33,7 +33,7 @@ impl crate::driver::BluetoothDriver for BluezDriver {
             .await
             .map_err(map_fdo_error)?;
 
-        let mut ids: Vec<AdapterId> = objects
+        let ids: Vec<AdapterId> = objects
             .into_iter()
             .filter_map(|(object_path, interfaces)| {
                 let id = path::adapter_id_from_path(object_path.as_str())?;
@@ -43,7 +43,6 @@ impl crate::driver::BluetoothDriver for BluezDriver {
                     .then_some(id)
             })
             .collect();
-        ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
 
         let mut adapters = Vec::with_capacity(ids.len());
         for id in ids {
@@ -58,12 +57,6 @@ impl crate::driver::BluetoothDriver for BluezDriver {
             Err(DriverError::NotFound) => Ok(None),
             Err(e) => Err(e),
         }
-    }
-
-    /// BlueZ has no explicit "default adapter" D-Bus property; like
-    /// `bluetoothctl`, we just take the first controller found.
-    async fn default_adapter(&self) -> Result<Option<BluezAdapter>, DriverError> {
-        Ok(self.adapters().await?.into_iter().next())
     }
 
     async fn events(&self) -> Result<BluezEvents, DriverError> {

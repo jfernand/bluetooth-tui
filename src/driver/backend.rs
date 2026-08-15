@@ -18,9 +18,6 @@ pub trait BluetoothDriver {
         id: &AdapterId,
     ) -> impl Future<Output = Result<Option<Self::Adapter>, DriverError>> + Send;
 
-    /// The controller `bluetoothctl` would select by default on startup.
-    fn default_adapter(&self) -> impl Future<Output = Result<Option<Self::Adapter>, DriverError>> + Send;
-
     /// Subscribe to live driver events — the feed behind `bluetoothctl`'s
     /// scan output and property-change notifications.
     fn events(&self) -> impl Future<Output = Result<Self::Events, DriverError>> + Send;
