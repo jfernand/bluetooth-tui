@@ -1,27 +1,8 @@
 [workspace]
-members = ["."]
+resolver = "3"
+members = ["crates/bluetooth-driver", "crates/bluetooth-tui"]
 
-[package]
-name = "bluetooth-tui"
-version = "0.1.0"
-edition = "2024"
-
-[lib]
-name = "bluetooth_tui"
-path = "src/lib.rs"
-
-[[bin]]
-name = "bluetooth-tui"
-path = "src/bin/main.rs"
-
-[dependencies]
-anyhow = "1.0.104"
-futures-util = "0.3.34"
-thiserror = "2.0.20"
-tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "sync"] }
-zbus = { version = "5", default-features = false, features = ["tokio"] }
-
-# Fast iteration: keep our own crate unoptimized (cheap to recompile),
+# Fast iteration: keep our own crates unoptimized (cheap to recompile),
 # but build dependencies at opt-level 3 once and reuse them.
 [profile.dev]
 opt-level = 0
