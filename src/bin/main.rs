@@ -1,5 +1,6 @@
 use bluetooth_tui::bluez::BluezDriver;
 use bluetooth_tui::driver::{self, Adapter, BluetoothDriver, DriverEvent, EventStream};
+use bluetooth_tui::oui;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -44,7 +45,8 @@ async fn main() -> anyhow::Result<()> {
 /// exposes for a device: address, name/alias, class, signal strength,
 /// pairing/connection state, and advertised service UUIDs.
 fn describe_device(device: &impl driver::Device) -> String {
-    let mut parts = vec![device.address().to_string()];
+    let address = device.address();
+    let mut parts = vec![format!("{address} ({})", oui::humanize(address))];
 
     if let Some(name) = device.name() {
         parts.push(format!("name={name:?}"));
