@@ -106,3 +106,28 @@ impl fmt::Display for Uuid {
         )
     }
 }
+
+impl FromStr for Uuid {
+    type Err = UuidParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let hex: String = s.chars().filter(|c| *c != '-').collect();
+        if hex.len() != 32 {
+            return Err(UuidParseError);
+        }
+        u128::from_str_radix(&hex, 16)
+            .map(Uuid)
+            .map_err(|_| UuidParseError)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UuidParseError;
+
+impl fmt::Display for UuidParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("invalid Bluetooth UUID")
+    }
+}
+
+impl std::error::Error for UuidParseError {}

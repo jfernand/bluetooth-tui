@@ -20,4 +20,6 @@ pub use adapter::Adapter;
 pub use backend::{BluetoothDriver, DriverEvent, EventStream};
 pub use device::Device;
 pub use error::DriverError;
-pub use types::{Address, AddressKind, AddressParseError, AdapterId, DeviceClass, Rssi, Uuid};
+pub use types::{
+    AdapterId, Address, AddressKind, AddressParseError, DeviceClass, Rssi, Uuid, UuidParseError,
+};
