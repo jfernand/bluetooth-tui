@@ -48,4 +48,7 @@ pub trait Adapter {
         &self,
         address: Address,
     ) -> impl Future<Output = Result<Option<Self::Device>, DriverError>> + Send;
+
+    /// Re-read live properties (powered, discoverable, ...) from the driver.
+    fn refresh(&mut self) -> impl Future<Output = Result<(), DriverError>> + Send;
 }
