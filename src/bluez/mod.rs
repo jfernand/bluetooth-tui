@@ -16,6 +16,8 @@ mod proxy;
 
 pub mod adapter;
 pub mod device;
+pub mod events;
 
 pub use adapter::BluezAdapter;
 pub use device::BluezDevice;
+pub use events::BluezEvents;
