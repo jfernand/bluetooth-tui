@@ -4,6 +4,8 @@
 use std::fmt;
 use std::str::FromStr;
 
+use thiserror::Error;
+
 /// A 48-bit Bluetooth device address (BD_ADDR).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Address([u8; 6]);
@@ -42,16 +44,9 @@ impl FromStr for Address {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[error("invalid Bluetooth address, expected AA:BB:CC:DD:EE:FF")]
 pub struct AddressParseError;
-
-impl fmt::Display for AddressParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("invalid Bluetooth address, expected AA:BB:CC:DD:EE:FF")
-    }
-}
-
-impl std::error::Error for AddressParseError {}
 
 /// Classic BR/EDR addresses are always public; LE addresses may be a
 /// resolvable/non-resolvable private address instead.
@@ -121,13 +116,6 @@ impl FromStr for Uuid {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[error("invalid Bluetooth UUID")]
 pub struct UuidParseError;
-
-impl fmt::Display for UuidParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("invalid Bluetooth UUID")
-    }
-}
-
-impl std::error::Error for UuidParseError {}
