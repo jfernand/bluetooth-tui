@@ -6,10 +6,6 @@
 //! D-Bus client, a raw HCI socket, and a mock for tests can all
 //! implement [`BluetoothDriver`]/[`Adapter`]/[`Device`].
 
-// No backend implements these yet, so nothing here is constructed or
-// called; drop this once a real implementation lands.
-#![allow(dead_code, unused_imports)]
-
 pub mod adapter;
 pub mod backend;
 pub mod device;

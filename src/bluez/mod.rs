@@ -5,10 +5,6 @@
 //! state with the system's Bluetooth daemon instead of fighting it for the
 //! controller.
 
-// Not wired into `lib.rs` yet, so nothing here is used yet; drop this once
-// the backend is assembled and exposed.
-#![allow(dead_code)]
-
 mod error;
 mod path;
 mod properties;
@@ -16,8 +12,10 @@ mod proxy;
 
 pub mod adapter;
 pub mod device;
+pub mod driver;
 pub mod events;
 
 pub use adapter::BluezAdapter;
 pub use device::BluezDevice;
+pub use driver::BluezDriver;
 pub use events::BluezEvents;
