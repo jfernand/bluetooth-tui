@@ -1,29 +1,20 @@
-use std::fmt;
+use thiserror::Error;
 
 /// Failure modes common to every backend (D-Bus/BlueZ, raw HCI, mock).
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum DriverError {
+    #[error("device or adapter not found")]
     NotFound,
+    #[error("permission denied")]
     PermissionDenied,
+    #[error("adapter not ready")]
     NotReady,
+    #[error("operation timed out")]
     Timeout,
+    #[error("unsupported: {0}")]
     Unsupported(&'static str),
+    #[error("rejected: {0}")]
     Rejected(String),
+    #[error("backend error: {0}")]
     Backend(String),
 }
-
-impl fmt::Display for DriverError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NotFound => write!(f, "device or adapter not found"),
-            Self::PermissionDenied => write!(f, "permission denied"),
-            Self::NotReady => write!(f, "adapter not ready"),
-            Self::Timeout => write!(f, "operation timed out"),
-            Self::Unsupported(what) => write!(f, "unsupported: {what}"),
-            Self::Rejected(reason) => write!(f, "rejected: {reason}"),
-            Self::Backend(msg) => write!(f, "backend error: {msg}"),
-        }
-    }
-}
-
-impl std::error::Error for DriverError {}
