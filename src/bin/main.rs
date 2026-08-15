@@ -1,6 +1,6 @@
 use bluetooth_tui::bluez::BluezDriver;
 use bluetooth_tui::driver::{self, Adapter, BluetoothDriver, DriverEvent, EventStream, VendorIdSource};
-use bluetooth_tui::{company_id, gap_appearance, gatt_uuid, oui, usb_vendor};
+use bluetooth_tui::{company_id, device_class, gap_appearance, gatt_uuid, oui, usb_vendor};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -100,7 +100,22 @@ async fn describe_device(device: &impl driver::Device) -> String {
         parts.push(format!("alias={alias:?}"));
     }
     if let Some(class) = device.class() {
-        parts.push(format!("class=0x{:06x}", class.0));
+        let cod = device_class::decode(class.0);
+        let mut label = cod.major_device_class.to_owned();
+        if let Some(minor) = cod.minor_device_class {
+            label.push_str(": ");
+            label.push_str(minor);
+        }
+        if let Some(sub) = cod.minor_device_subclass {
+            label.push_str(" / ");
+            label.push_str(sub);
+        }
+        if !cod.major_service_classes.is_empty() {
+            label.push_str(" {");
+            label.push_str(&cod.major_service_classes.join(", "));
+            label.push('}');
+        }
+        parts.push(format!("class={label:?}"));
     }
     if let Some(appearance) = device.appearance() {
         match gap_appearance::name(appearance) {
@@ -129,6 +144,12 @@ async fn describe_device(device: &impl driver::Device) -> String {
         state.push("blocked");
     }
     parts.push(format!("[{}]", state.join(" ")));
+
+    if device.is_connected()
+        && let Ok(Some(percent)) = device.battery_percent().await
+    {
+        parts.push(format!("battery={percent}%"));
+    }
 
     let uuids = device.service_uuids();
     if uuids.is_empty() {
