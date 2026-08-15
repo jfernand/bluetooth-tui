@@ -1,0 +1,302 @@
+0000	Unknown
+0040	Phone
+0080	Computer
+0081	Computer: Desktop Workstation
+0082	Computer: Server-class Computer
+0083	Computer: Laptop
+0084	Computer: Handheld PC/PDA (clamshell)
+0085	Computer: Palm-size PC/PDA
+0086	Computer: Wearable computer (watch size)
+0087	Computer: Tablet
+0088	Computer: Docking Station
+0089	Computer: All in One
+008A	Computer: Blade Server
+008B	Computer: Convertible
+008C	Computer: Detachable
+008D	Computer: IoT Gateway
+008E	Computer: Mini PC
+008F	Computer: Stick PC
+00C0	Watch
+00C1	Watch: Sports Watch
+00C2	Watch: Smartwatch
+0100	Clock
+0140	Display
+0180	Remote Control
+01C0	Eye-glasses
+0200	Tag
+0240	Keyring
+0280	Media Player
+02C0	Barcode Scanner
+0300	Thermometer
+0301	Thermometer: Ear Thermometer
+0340	Heart Rate Sensor
+0341	Heart Rate Sensor: Heart Rate Belt
+0380	Blood Pressure
+0381	Blood Pressure: Arm Blood Pressure
+0382	Blood Pressure: Wrist Blood Pressure
+03C0	Human Interface Device
+03C1	Human Interface Device: Keyboard
+03C2	Human Interface Device: Mouse
+03C3	Human Interface Device: Joystick
+03C4	Human Interface Device: Gamepad
+03C5	Human Interface Device: Digitizer Tablet
+03C6	Human Interface Device: Card Reader
+03C7	Human Interface Device: Digital Pen
+03C8	Human Interface Device: Barcode Scanner
+03C9	Human Interface Device: Touchpad
+03CA	Human Interface Device: Presentation Remote
+0400	Glucose Meter
+0440	Running Walking Sensor
+0441	Running Walking Sensor: In-Shoe Running Walking Sensor
+0442	Running Walking Sensor: On-Shoe Running Walking Sensor
+0443	Running Walking Sensor: On-Hip Running Walking Sensor
+0480	Cycling
+0481	Cycling: Cycling Computer
+0482	Cycling: Speed Sensor
+0483	Cycling: Cadence Sensor
+0484	Cycling: Power Sensor
+0485	Cycling: Speed and Cadence Sensor
+04C0	Control Device
+04C1	Control Device: Switch
+04C2	Control Device: Multi-switch
+04C3	Control Device: Button
+04C4	Control Device: Slider
+04C5	Control Device: Rotary Switch
+04C6	Control Device: Touch Panel
+04C7	Control Device: Single Switch
+04C8	Control Device: Double Switch
+04C9	Control Device: Triple Switch
+04CA	Control Device: Battery Switch
+04CB	Control Device: Energy Harvesting Switch
+04CC	Control Device: Push Button
+04CD	Control Device: Dial
+0500	Network Device
+0501	Network Device: Access Point
+0502	Network Device: Mesh Device
+0503	Network Device: Mesh Network Proxy
+0540	Sensor
+0541	Sensor: Motion Sensor
+0542	Sensor: Air quality Sensor
+0543	Sensor: Temperature Sensor
+0544	Sensor: Humidity Sensor
+0545	Sensor: Leak Sensor
+0546	Sensor: Smoke Sensor
+0547	Sensor: Occupancy Sensor
+0548	Sensor: Contact Sensor
+0549	Sensor: Carbon Monoxide Sensor
+054A	Sensor: Carbon Dioxide Sensor
+054B	Sensor: Ambient Light Sensor
+054C	Sensor: Energy Sensor
+054D	Sensor: Color Light Sensor
+054E	Sensor: Rain Sensor
+054F	Sensor: Fire Sensor
+0550	Sensor: Wind Sensor
+0551	Sensor: Proximity Sensor
+0552	Sensor: Multi-Sensor
+0553	Sensor: Flush Mounted Sensor
+0554	Sensor: Ceiling Mounted Sensor
+0555	Sensor: Wall Mounted Sensor
+0556	Sensor: Multisensor
+0557	Sensor: Energy Meter
+0558	Sensor: Flame Detector
+0559	Sensor: Vehicle Tire Pressure Sensor
+0580	Light Fixtures
+0581	Light Fixtures: Wall Light
+0582	Light Fixtures: Ceiling Light
+0583	Light Fixtures: Floor Light
+0584	Light Fixtures: Cabinet Light
+0585	Light Fixtures: Desk Light
+0586	Light Fixtures: Troffer Light
+0587	Light Fixtures: Pendant Light
+0588	Light Fixtures: In-ground Light
+0589	Light Fixtures: Flood Light
+058A	Light Fixtures: Underwater Light
+058B	Light Fixtures: Bollard with Light
+058C	Light Fixtures: Pathway Light
+058D	Light Fixtures: Garden Light
+058E	Light Fixtures: Pole-top Light
+058F	Light Fixtures: Spotlight
+0590	Light Fixtures: Linear Light
+0591	Light Fixtures: Street Light
+0592	Light Fixtures: Shelves Light
+0593	Light Fixtures: Bay Light
+0594	Light Fixtures: Emergency Exit Light
+0595	Light Fixtures: Light Controller
+0596	Light Fixtures: Light Driver
+0597	Light Fixtures: Bulb
+0598	Light Fixtures: Low-bay Light
+0599	Light Fixtures: High-bay Light
+05C0	Fan
+05C1	Fan: Ceiling Fan
+05C2	Fan: Axial Fan
+05C3	Fan: Exhaust Fan
+05C4	Fan: Pedestal Fan
+05C5	Fan: Desk Fan
+05C6	Fan: Wall Fan
+0600	HVAC
+0601	HVAC: Thermostat
+0602	HVAC: Humidifier
+0603	HVAC: De-humidifier
+0604	HVAC: Heater
+0605	HVAC: Radiator
+0606	HVAC: Boiler
+0607	HVAC: Heat Pump
+0608	HVAC: Infrared Heater
+0609	HVAC: Radiant Panel Heater
+060A	HVAC: Fan Heater
+060B	HVAC: Air Curtain
+0640	Air Conditioning
+0680	Humidifier
+06C0	Heating
+06C1	Heating: Radiator
+06C2	Heating: Boiler
+06C3	Heating: Heat Pump
+06C4	Heating: Infrared Heater
+06C5	Heating: Radiant Panel Heater
+06C6	Heating: Fan Heater
+06C7	Heating: Air Curtain
+0700	Access Control
+0701	Access Control: Access Door
+0702	Access Control: Garage Door
+0703	Access Control: Emergency Exit Door
+0704	Access Control: Access Lock
+0705	Access Control: Elevator
+0706	Access Control: Window
+0707	Access Control: Entrance Gate
+0708	Access Control: Door Lock
+0709	Access Control: Locker
+0740	Motorized Device
+0741	Motorized Device: Motorized Gate
+0742	Motorized Device: Awning
+0743	Motorized Device: Blinds or Shades
+0744	Motorized Device: Curtains
+0745	Motorized Device: Screen
+0780	Power Device
+0781	Power Device: Power Outlet
+0782	Power Device: Power Strip
+0783	Power Device: Plug
+0784	Power Device: Power Supply
+0785	Power Device: LED Driver
+0786	Power Device: Fluorescent Lamp Gear
+0787	Power Device: HID Lamp Gear
+0788	Power Device: Charge Case
+0789	Power Device: Power Bank
+07C0	Light Source
+07C1	Light Source: Incandescent Light Bulb
+07C2	Light Source: LED Lamp
+07C3	Light Source: HID Lamp
+07C4	Light Source: Fluorescent Lamp
+07C5	Light Source: LED Array
+07C6	Light Source: Multi-Color LED Array
+07C7	Light Source: Low voltage halogen
+07C8	Light Source: Organic light emitting diode (OLED)
+0800	Window Covering
+0801	Window Covering: Window Shades
+0802	Window Covering: Window Blinds
+0803	Window Covering: Window Awning
+0804	Window Covering: Window Curtain
+0805	Window Covering: Exterior Shutter
+0806	Window Covering: Exterior Screen
+0840	Audio Sink
+0841	Audio Sink: Standalone Speaker
+0842	Audio Sink: Soundbar
+0843	Audio Sink: Bookshelf Speaker
+0844	Audio Sink: Standmounted Speaker
+0845	Audio Sink: Speakerphone
+0880	Audio Source
+0881	Audio Source: Microphone
+0882	Audio Source: Alarm
+0883	Audio Source: Bell
+0884	Audio Source: Horn
+0885	Audio Source: Broadcasting Device
+0886	Audio Source: Service Desk
+0887	Audio Source: Kiosk
+0888	Audio Source: Broadcasting Room
+0889	Audio Source: Auditorium
+08C0	Motorized Vehicle
+08C1	Motorized Vehicle: Car
+08C2	Motorized Vehicle: Large Goods Vehicle
+08C3	Motorized Vehicle: 2-Wheeled Vehicle
+08C4	Motorized Vehicle: Motorbike
+08C5	Motorized Vehicle: Scooter
+08C6	Motorized Vehicle: Moped
+08C7	Motorized Vehicle: 3-Wheeled Vehicle
+08C8	Motorized Vehicle: Light Vehicle
+08C9	Motorized Vehicle: Quad Bike
+08CA	Motorized Vehicle: Minibus
+08CB	Motorized Vehicle: Bus
+08CC	Motorized Vehicle: Trolley
+08CD	Motorized Vehicle: Agricultural Vehicle
+08CE	Motorized Vehicle: Camper / Caravan
+08CF	Motorized Vehicle: Recreational Vehicle / Motor Home
+0900	Domestic Appliance
+0901	Domestic Appliance: Refrigerator
+0902	Domestic Appliance: Freezer
+0903	Domestic Appliance: Oven
+0904	Domestic Appliance: Microwave
+0905	Domestic Appliance: Toaster
+0906	Domestic Appliance: Washing Machine
+0907	Domestic Appliance: Dryer
+0908	Domestic Appliance: Coffee maker
+0909	Domestic Appliance: Clothes iron
+090A	Domestic Appliance: Curling iron
+090B	Domestic Appliance: Hair dryer
+090C	Domestic Appliance: Vacuum cleaner
+090D	Domestic Appliance: Robotic vacuum cleaner
+090E	Domestic Appliance: Rice cooker
+090F	Domestic Appliance: Clothes steamer
+0940	Wearable Audio Device
+0941	Wearable Audio Device: Earbud
+0942	Wearable Audio Device: Headset
+0943	Wearable Audio Device: Headphones
+0944	Wearable Audio Device: Neck Band
+0980	Aircraft
+0981	Aircraft: Light Aircraft
+0982	Aircraft: Microlight
+0983	Aircraft: Paraglider
+0984	Aircraft: Large Passenger Aircraft
+09C0	AV Equipment
+09C1	AV Equipment: Amplifier
+09C2	AV Equipment: Receiver
+09C3	AV Equipment: Radio
+09C4	AV Equipment: Tuner
+09C5	AV Equipment: Turntable
+09C6	AV Equipment: CD Player
+09C7	AV Equipment: DVD Player
+09C8	AV Equipment: Bluray Player
+09C9	AV Equipment: Optical Disc Player
+09CA	AV Equipment: Set-Top Box
+0A00	Display Equipment
+0A01	Display Equipment: Television
+0A02	Display Equipment: Monitor
+0A03	Display Equipment: Projector
+0A40	Hearing aid
+0A41	Hearing aid: In-ear hearing aid
+0A42	Hearing aid: Behind-ear hearing aid
+0A43	Hearing aid: Cochlear Implant
+0A80	Gaming
+0A81	Gaming: Home Video Game Console
+0A82	Gaming: Portable handheld console
+0AC0	Signage
+0AC1	Signage: Digital Signage
+0AC2	Signage: Electronic Label
+0C40	Pulse Oximeter
+0C41	Pulse Oximeter: Fingertip Pulse Oximeter
+0C42	Pulse Oximeter: Wrist Worn Pulse Oximeter
+0C80	Weight Scale
+0CC0	Personal Mobility Device
+0CC1	Personal Mobility Device: Powered Wheelchair
+0CC2	Personal Mobility Device: Mobility Scooter
+0D00	Continuous Glucose Monitor
+0D40	Insulin Pump
+0D41	Insulin Pump: Insulin Pump, durable pump
+0D44	Insulin Pump: Insulin Pump, patch pump
+0D48	Insulin Pump: Insulin Pen
+0D80	Medication Delivery
+0DC0	Spirometer
+0DC1	Spirometer: Handheld Spirometer
+1440	Outdoor Sports Activity
+1441	Outdoor Sports Activity: Location Display
+1442	Outdoor Sports Activity: Location and Navigation Display
+1443	Outdoor Sports Activity: Location Pod
+1444	Outdoor Sports Activity: Location and Navigation Pod
