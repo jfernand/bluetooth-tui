@@ -1,6 +1,6 @@
 use bluetooth_tui::bluez::BluezDriver;
 use bluetooth_tui::driver::{self, Adapter, BluetoothDriver, DriverEvent, EventStream, VendorIdSource};
-use bluetooth_tui::{company_id, oui, usb_vendor};
+use bluetooth_tui::{company_id, gap_appearance, gatt_uuid, oui, usb_vendor};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -102,6 +102,12 @@ async fn describe_device(device: &impl driver::Device) -> String {
     if let Some(class) = device.class() {
         parts.push(format!("class=0x{:06x}", class.0));
     }
+    if let Some(appearance) = device.appearance() {
+        match gap_appearance::name(appearance) {
+            Some(name) => parts.push(format!("appearance={name:?}")),
+            None => parts.push(format!("appearance=0x{appearance:04X}")),
+        }
+    }
     if let Some(rssi) = device.rssi() {
         parts.push(format!("rssi={}dBm", rssi.0));
     }
@@ -128,7 +134,13 @@ async fn describe_device(device: &impl driver::Device) -> String {
     if uuids.is_empty() {
         parts.push("uuids=none".to_owned());
     } else {
-        let uuids: Vec<String> = uuids.iter().map(ToString::to_string).collect();
+        let uuids: Vec<String> = uuids
+            .iter()
+            .map(|&uuid| match gatt_uuid::service_name(uuid) {
+                Some(name) => name.to_owned(),
+                None => uuid.to_string(),
+            })
+            .collect();
         parts.push(format!("uuids=[{}]", uuids.join(", ")));
     }
 
