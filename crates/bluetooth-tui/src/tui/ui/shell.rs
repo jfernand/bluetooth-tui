@@ -152,7 +152,7 @@ fn draw_adapters(frame: &mut Frame, app: &App, area: Rect) {
     let items: Vec<ListItem> = app
         .adapters
         .iter()
-        .map(|a| ListItem::new(Line::from(a.id().to_string())))
+        .map(|a| ListItem::new(Line::from(format!("{}  {}", a.id(), a.name()))))
         .collect();
     let mut state = ListState::default().with_selected(Some(app.adapter_idx));
     let highlight = focus_style(app.focus == Focus::Adapters);
@@ -314,6 +314,26 @@ fn draw_detail(frame: &mut Frame, app: &App, area: Rect) {
         bluetooth_driver::driver::AddressKind::Random => "random — rotates for privacy",
     };
     lines.push(widgets::field_line("kind", widgets::value(kind), 12));
+    if let Some(class) = device.class() {
+        let cod = bluetooth_driver::device_class::decode(class.0);
+        let mut label = cod.major_device_class.to_owned();
+        if let Some(minor) = cod.minor_device_class {
+            label.push_str(": ");
+            label.push_str(minor);
+        }
+        if let Some(sub) = cod.minor_device_subclass {
+            label.push_str(" / ");
+            label.push_str(sub);
+        }
+        lines.push(widgets::field_line("class", widgets::value(label), 12));
+    }
+    if let Some(appearance) = device.appearance() {
+        let label = match bluetooth_driver::gap_appearance::name(appearance) {
+            Some(name) => name.to_owned(),
+            None => format!("0x{appearance:04X}"),
+        };
+        lines.push(widgets::field_line("appearance", widgets::value(label), 12));
+    }
     lines.push(Line::default());
 
     lines.push(widgets::section_title("VENDOR"));
