@@ -1,12 +1,14 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
 use bluetooth_driver::bluez::{BluezAdapter, BluezDevice, BluezDriver};
 use bluetooth_driver::driver::{
-    Adapter, Address, BluetoothDriver, Device, DriverError, DriverEvent, VendorIdSource,
+    Adapter, Address, BluetoothDriver, Device, DeviceInfo, DriverError, DriverEvent, PnpId,
+    VendorIdSource,
 };
 
 const BATTERY_REFRESH_INTERVAL: Duration = Duration::from_secs(10);
+const FULL_INFO_REFRESH_INTERVAL: Duration = Duration::from_secs(15);
 
 const MAX_LOGGED_EVENTS: usize = 5_000;
 const STATUS_BANNER_LIFETIME: Duration = Duration::from_secs(6);
@@ -217,8 +219,22 @@ pub struct App {
     pub battery: Option<u8>,
     battery_for: Option<Address>,
     battery_checked_at: Option<Instant>,
+    /// GATT Device Information + PnP ID, fetched only while the
+    /// fullscreen detail view is open (it's not needed anywhere else).
+    pub full_info: Option<FullDeviceInfo>,
+    full_info_for: Option<Address>,
+    full_info_checked_at: Option<Instant>,
+    /// Client-side "last seen" tracking: BlueZ has no such property, so
+    /// this is a timestamp of the last DeviceFound/DeviceUpdated event
+    /// per address, on the current adapter only.
+    pub last_seen: HashMap<Address, Instant>,
     pub devices_dirty: bool,
     pub should_quit: bool,
+}
+
+pub struct FullDeviceInfo {
+    pub device_info: DeviceInfo,
+    pub pnp_id: Option<PnpId>,
 }
 
 impl App {
@@ -258,6 +274,10 @@ impl App {
             battery: None,
             battery_for: None,
             battery_checked_at: None,
+            full_info: None,
+            full_info_for: None,
+            full_info_checked_at: None,
+            last_seen: HashMap::new(),
             devices_dirty: false,
             should_quit: false,
         })
@@ -333,6 +353,48 @@ impl App {
             self.status = None;
         }
         self.refresh_battery_if_needed().await;
+        self.refresh_full_info_if_needed().await;
+    }
+
+    async fn refresh_full_info_if_needed(&mut self) {
+        if !self.fullscreen_detail {
+            return;
+        }
+        let Some((address, connected)) = self
+            .selected_device()
+            .map(|d| (d.address(), d.is_connected()))
+        else {
+            self.full_info = None;
+            self.full_info_for = None;
+            return;
+        };
+        let selection_changed = self.full_info_for != Some(address);
+        let stale = self
+            .full_info_checked_at
+            .is_none_or(|t| t.elapsed() > FULL_INFO_REFRESH_INTERVAL);
+
+        if !connected {
+            if selection_changed {
+                self.full_info = None;
+                self.full_info_for = Some(address);
+                self.full_info_checked_at = None;
+            }
+            return;
+        }
+        if !selection_changed && !stale {
+            return;
+        }
+
+        self.full_info_for = Some(address);
+        self.full_info_checked_at = Some(Instant::now());
+        self.full_info = match self.selected_device() {
+            Some(device) => {
+                let device_info = device.device_information().await.unwrap_or_default();
+                let pnp_id = device.pnp_id().await.ok().flatten();
+                Some(FullDeviceInfo { device_info, pnp_id })
+            }
+            None => None,
+        };
     }
 
     async fn refresh_battery_if_needed(&mut self) {
@@ -376,9 +438,11 @@ impl App {
         };
         if touches_current_adapter {
             match &event {
-                DriverEvent::DeviceFound { .. }
-                | DriverEvent::DeviceUpdated { .. }
-                | DriverEvent::DeviceRemoved { .. } => self.devices_dirty = true,
+                DriverEvent::DeviceFound { address, .. } | DriverEvent::DeviceUpdated { address, .. } => {
+                    self.last_seen.insert(*address, Instant::now());
+                    self.devices_dirty = true;
+                }
+                DriverEvent::DeviceRemoved { .. } => self.devices_dirty = true,
                 DriverEvent::PoweredChanged { .. } | DriverEvent::DiscoveringChanged { .. } => {
                     if let Some(adapter) = self.adapters.get_mut(self.adapter_idx) {
                         let _ = adapter.refresh().await;

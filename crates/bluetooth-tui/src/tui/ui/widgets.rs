@@ -55,7 +55,7 @@ pub fn section_title(text: &str) -> Line<'_> {
 }
 
 /// A `label   value` row, as used throughout the detail panes.
-pub fn field_line<'a>(label: &'a str, value: impl Into<Span<'a>>, label_width: usize) -> Line<'a> {
+pub fn field_line<'a>(label: &str, value: impl Into<Span<'a>>, label_width: usize) -> Line<'a> {
     Line::from(vec![
         Span::styled(
             format!("{label:<label_width$}"),

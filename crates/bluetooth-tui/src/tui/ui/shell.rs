@@ -25,7 +25,7 @@ pub fn draw(frame: &mut Frame, app: &App, area: Rect) {
     draw_breadcrumb(frame, app, rows[1]);
 
     if app.fullscreen_detail {
-        draw_detail(frame, app, rows[2]);
+        super::device_full::draw(frame, app, rows[2]);
     } else {
         let cols = Layout::default()
             .direction(Direction::Horizontal)

@@ -1,4 +1,5 @@
 mod adapter_control;
+mod device_full;
 mod discovery;
 mod event_log;
 mod help;
