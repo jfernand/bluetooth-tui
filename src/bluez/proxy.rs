@@ -4,7 +4,9 @@
 //! rather than nulling them and `Properties.GetAll` makes that easy to
 //! handle uniformly.
 
-use zbus::zvariant::ObjectPath;
+use std::collections::HashMap;
+
+use zbus::zvariant::{ObjectPath, Value};
 
 #[zbus::proxy(interface = "org.bluez.Adapter1", default_service = "org.bluez")]
 pub(crate) trait Adapter1 {
@@ -31,4 +33,9 @@ pub(crate) trait Device1 {
     fn set_trusted(&self, value: bool) -> zbus::Result<()>;
     #[zbus(property)]
     fn set_blocked(&self, value: bool) -> zbus::Result<()>;
+}
+
+#[zbus::proxy(interface = "org.bluez.GattCharacteristic1", default_service = "org.bluez")]
+pub(crate) trait GattCharacteristic1 {
+    fn read_value(&self, options: HashMap<&str, Value<'_>>) -> zbus::Result<Vec<u8>>;
 }

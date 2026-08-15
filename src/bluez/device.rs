@@ -1,6 +1,11 @@
-use crate::driver::{Address, AddressKind, DeviceClass, DriverError, Rssi, Uuid};
+use std::collections::HashMap;
+
+use zbus::zvariant::OwnedValue;
+
+use crate::driver::{Address, AddressKind, DeviceClass, DriverError, PnpId, Rssi, Uuid};
 
 use super::error::map_zbus_error;
+use super::gatt;
 use super::path;
 use super::properties::{self, PropertyMap};
 use super::proxy;
@@ -26,6 +31,7 @@ pub struct BluezDevice {
     trusted: bool,
     blocked: bool,
     service_uuids: Vec<Uuid>,
+    manufacturer_ids: Vec<u16>,
 }
 
 struct Snapshot {
@@ -40,6 +46,7 @@ struct Snapshot {
     trusted: bool,
     blocked: bool,
     service_uuids: Vec<Uuid>,
+    manufacturer_ids: Vec<u16>,
 }
 
 fn snapshot(mut props: PropertyMap) -> Snapshot {
@@ -62,6 +69,16 @@ fn snapshot(mut props: PropertyMap) -> Snapshot {
             .into_iter()
             .filter_map(|s| s.parse().ok())
             .collect(),
+        manufacturer_ids: {
+            let mut ids: Vec<u16> = properties::take::<HashMap<u16, OwnedValue>>(
+                &mut props,
+                "ManufacturerData",
+            )
+            .map(|m| m.into_keys().collect())
+            .unwrap_or_default();
+            ids.sort_unstable();
+            ids
+        },
     }
 }
 
@@ -114,6 +131,7 @@ impl BluezDevice {
             trusted: snap.trusted,
             blocked: snap.blocked,
             service_uuids: snap.service_uuids,
+            manufacturer_ids: snap.manufacturer_ids,
         })
     }
 }
@@ -165,6 +183,14 @@ impl crate::driver::Device for BluezDevice {
 
     fn service_uuids(&self) -> &[Uuid] {
         &self.service_uuids
+    }
+
+    fn manufacturer_ids(&self) -> &[u16] {
+        &self.manufacturer_ids
+    }
+
+    async fn pnp_id(&self) -> Result<Option<PnpId>, DriverError> {
+        gatt::read_pnp_id(&self.connection, &self.object_path).await
     }
 
     async fn pair(&mut self) -> Result<(), DriverError> {
@@ -226,6 +252,7 @@ impl crate::driver::Device for BluezDevice {
         self.trusted = snap.trusted;
         self.blocked = snap.blocked;
         self.service_uuids = snap.service_uuids;
+        self.manufacturer_ids = snap.manufacturer_ids;
         Ok(())
     }
 }

@@ -6,6 +6,7 @@
 //! controller.
 
 mod error;
+mod gatt;
 mod path;
 mod properties;
 mod proxy;
