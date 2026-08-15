@@ -341,15 +341,40 @@ fn draw_detail(frame: &mut Frame, app: &App, area: Rect) {
     }
     lines.push(Line::default());
 
+    let uuids = device.service_uuids();
+    let services_title = format!("SERVICES — {}", uuids.len());
+    lines.push(widgets::section_title(&services_title));
+    if uuids.is_empty() {
+        lines.push(Line::from(widgets::muted_value("none advertised")));
+    } else {
+        const SHOWN: usize = 8;
+        for uuid in uuids.iter().take(SHOWN) {
+            let name = bluetooth_driver::gatt_uuid::service_name(*uuid)
+                .map(str::to_owned)
+                .unwrap_or_else(|| uuid.to_string());
+            lines.push(Line::from(widgets::value(name)));
+        }
+        if uuids.len() > SHOWN {
+            lines.push(Line::from(widgets::muted_value(format!(
+                "…{} more — f for full list",
+                uuids.len() - SHOWN
+            ))));
+        }
+    }
+    lines.push(Line::default());
+
     lines.push(widgets::section_title("LINK"));
     if let Some(rssi) = device.rssi() {
         lines.push(widgets::field_line("rssi", widgets::value(format!("{} dBm", rssi.0)), 12));
     }
-    lines.push(widgets::field_line(
-        "services",
-        widgets::value(device.service_uuids().len().to_string()),
-        12,
-    ));
+    if device.is_connected() {
+        match app.battery {
+            Some(percent) => {
+                lines.push(widgets::field_line("battery", widgets::value(format!("{percent}%")), 12));
+            }
+            None => lines.push(widgets::field_line("battery", widgets::muted_value("—"), 12)),
+        }
+    }
 
     frame.render_widget(Paragraph::new(lines), inner);
 }

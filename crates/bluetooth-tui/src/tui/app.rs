@@ -3,8 +3,10 @@ use std::time::{Duration, Instant};
 
 use bluetooth_driver::bluez::{BluezAdapter, BluezDevice, BluezDriver};
 use bluetooth_driver::driver::{
-    Adapter, BluetoothDriver, Device, DriverError, DriverEvent, VendorIdSource,
+    Adapter, Address, BluetoothDriver, Device, DriverError, DriverEvent, VendorIdSource,
 };
+
+const BATTERY_REFRESH_INTERVAL: Duration = Duration::from_secs(10);
 
 const MAX_LOGGED_EVENTS: usize = 5_000;
 const STATUS_BANNER_LIFETIME: Duration = Duration::from_secs(6);
@@ -209,6 +211,12 @@ pub struct App {
     pub status: Option<StatusBanner>,
     pub scan_started_at: Option<Instant>,
     pub vendor_info: Option<VendorAttribution>,
+    /// Battery level cache for whichever device is currently selected -
+    /// a live GATT read, so it's fetched on selection change / a slow
+    /// interval rather than every render pass.
+    pub battery: Option<u8>,
+    battery_for: Option<Address>,
+    battery_checked_at: Option<Instant>,
     pub devices_dirty: bool,
     pub should_quit: bool,
 }
@@ -247,6 +255,9 @@ impl App {
             status: None,
             scan_started_at,
             vendor_info: None,
+            battery: None,
+            battery_for: None,
+            battery_checked_at: None,
             devices_dirty: false,
             should_quit: false,
         })
@@ -321,6 +332,41 @@ impl App {
         {
             self.status = None;
         }
+        self.refresh_battery_if_needed().await;
+    }
+
+    async fn refresh_battery_if_needed(&mut self) {
+        let Some((address, connected)) = self
+            .selected_device()
+            .map(|d| (d.address(), d.is_connected()))
+        else {
+            self.battery = None;
+            self.battery_for = None;
+            return;
+        };
+        let selection_changed = self.battery_for != Some(address);
+        let stale = self
+            .battery_checked_at
+            .is_none_or(|t| t.elapsed() > BATTERY_REFRESH_INTERVAL);
+
+        if !connected {
+            if selection_changed {
+                self.battery = None;
+                self.battery_for = Some(address);
+                self.battery_checked_at = None;
+            }
+            return;
+        }
+        if !selection_changed && !stale {
+            return;
+        }
+
+        self.battery_for = Some(address);
+        self.battery_checked_at = Some(Instant::now());
+        self.battery = match self.selected_device() {
+            Some(device) => device.battery_percent().await.ok().flatten(),
+            None => None,
+        };
     }
 
     pub async fn handle_driver_event(&mut self, event: DriverEvent) {
