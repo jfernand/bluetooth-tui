@@ -60,7 +60,7 @@ impl crate::driver::BluetoothDriver for BluezDriver {
             Err(DriverError::NotFound) => Ok(None),
             Err(e) => Err(e),
         }
-    } 
+    }
 
     async fn events(&self) -> Result<BluezEvents, DriverError> {
         BluezEvents::new(self.connection.clone()).await
