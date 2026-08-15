@@ -1,7 +1,7 @@
 use std::future::Future;
 
 use crate::driver::error::DriverError;
-use crate::driver::types::{Address, AddressKind, DeviceClass, Rssi, Uuid};
+use crate::driver::types::{Address, AddressKind, DeviceClass, PnpId, Rssi, Uuid};
 
 /// A remote Bluetooth device as seen through a specific local adapter —
 /// the driver-layer counterpart of what `bluetoothctl` prints per line
@@ -32,6 +32,20 @@ pub trait Device {
 
     /// Service UUIDs advertised (LE) or discovered via SDP (classic).
     fn service_uuids(&self) -> &[Uuid];
+
+    /// Bluetooth SIG Company Identifiers seen in the device's advertising
+    /// Manufacturer Specific Data. Note this identifies whose *data
+    /// format* an advertisement uses, not necessarily who made the
+    /// device - many third-party accessories include e.g. a Microsoft
+    /// Swift Pair beacon alongside their own identity.
+    fn manufacturer_ids(&self) -> &[u16];
+
+    /// Reads the GATT Device Information Service's PnP ID characteristic
+    /// (0x2A50) - the actual USB-VID equivalent, since its Vendor ID
+    /// Source can point at a real USB-IF-assigned VID rather than just a
+    /// Bluetooth SIG company ID. Requires an active, service-resolved
+    /// connection; returns `Ok(None)` if the device doesn't expose it.
+    fn pnp_id(&self) -> impl Future<Output = Result<Option<PnpId>, DriverError>> + Send;
 
     /// Initiate pairing/bonding. Resolves once bonding succeeds, fails,
     /// or is rejected by whatever pairing agent is registered.

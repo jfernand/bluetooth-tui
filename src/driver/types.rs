@@ -85,6 +85,46 @@ pub struct Rssi(pub i16);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DeviceClass(pub u32);
 
+/// The GATT Device Information Service's PnP ID characteristic (0x2A50)
+/// — the Bluetooth analogue of a USB device descriptor's vendor/product
+/// IDs. `vendor_id_source` says whether `vendor_id` is a Bluetooth SIG
+/// company identifier or an actual USB-IF-assigned VID.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PnpId {
+    pub vendor_id_source: VendorIdSource,
+    pub vendor_id: u16,
+    pub product_id: u16,
+    pub product_version: u16,
+}
+
+impl PnpId {
+    /// Parses a PnP ID characteristic's raw value: vendor ID source (1
+    /// octet), vendor ID, product ID, product version (2 octets each,
+    /// little-endian) — 7 octets total, per the GATT Device Information
+    /// Service specification. Returns `None` for a malformed value
+    /// (wrong length, or an unrecognized vendor ID source).
+    pub fn parse(bytes: &[u8]) -> Option<Self> {
+        let bytes: [u8; 7] = bytes.try_into().ok()?;
+        let vendor_id_source = match bytes[0] {
+            1 => VendorIdSource::BluetoothSig,
+            2 => VendorIdSource::Usb,
+            _ => return None,
+        };
+        Some(Self {
+            vendor_id_source,
+            vendor_id: u16::from_le_bytes([bytes[1], bytes[2]]),
+            product_id: u16::from_le_bytes([bytes[3], bytes[4]]),
+            product_version: u16::from_le_bytes([bytes[5], bytes[6]]),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VendorIdSource {
+    BluetoothSig,
+    Usb,
+}
+
 /// A 128-bit Bluetooth UUID (service/characteristic/profile identifier).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Uuid(pub u128);
@@ -119,3 +159,26 @@ impl FromStr for Uuid {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 #[error("invalid Bluetooth UUID")]
 pub struct UuidParseError;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_a_pnp_id_characteristic_value() {
+        // source=SIG(1), vendor=0x01DA (Logitech, LE), product=0x1234,
+        // version=0x0100.
+        let bytes = [0x01, 0xDA, 0x01, 0x34, 0x12, 0x00, 0x01];
+        let pnp_id = PnpId::parse(&bytes).unwrap();
+        assert_eq!(pnp_id.vendor_id_source, VendorIdSource::BluetoothSig);
+        assert_eq!(pnp_id.vendor_id, 0x01DA);
+        assert_eq!(pnp_id.product_id, 0x1234);
+        assert_eq!(pnp_id.product_version, 0x0100);
+    }
+
+    #[test]
+    fn rejects_the_wrong_length_or_an_unknown_vendor_id_source() {
+        assert!(PnpId::parse(&[1, 2, 3]).is_none());
+        assert!(PnpId::parse(&[0, 0, 0, 0, 0, 0, 0]).is_none());
+    }
+}
