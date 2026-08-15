@@ -33,6 +33,8 @@ pub(crate) trait Device1 {
     fn set_trusted(&self, value: bool) -> zbus::Result<()>;
     #[zbus(property)]
     fn set_blocked(&self, value: bool) -> zbus::Result<()>;
+    #[zbus(property)]
+    fn set_alias(&self, value: &str) -> zbus::Result<()>;
 }
 
 #[zbus::proxy(interface = "org.bluez.GattCharacteristic1", default_service = "org.bluez")]

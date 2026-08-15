@@ -18,7 +18,16 @@ pub trait Device {
     /// User- or backend-assigned alias (`bluetoothctl`'s "Alias").
     fn alias(&self) -> Option<&str>;
 
+    /// Sets the alias. An empty string resets it back to the device's
+    /// advertised/read name.
+    fn set_alias(&mut self, alias: &str) -> impl Future<Output = Result<(), DriverError>> + Send;
+
     fn class(&self) -> Option<DeviceClass>;
+
+    /// GAP Appearance value (icon/category hint, e.g. "mouse" or
+    /// "keyboard") - see the `gap_appearance` module to resolve it to a
+    /// name.
+    fn appearance(&self) -> Option<u16>;
 
     /// Last-seen signal strength; present while the device is in range
     /// during an active scan.

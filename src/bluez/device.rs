@@ -24,6 +24,7 @@ pub struct BluezDevice {
     name: Option<String>,
     alias: Option<String>,
     class: Option<DeviceClass>,
+    appearance: Option<u16>,
     rssi: Option<Rssi>,
     paired: bool,
     bonded: bool,
@@ -39,6 +40,7 @@ struct Snapshot {
     name: Option<String>,
     alias: Option<String>,
     class: Option<DeviceClass>,
+    appearance: Option<u16>,
     rssi: Option<Rssi>,
     paired: bool,
     bonded: bool,
@@ -56,6 +58,7 @@ fn snapshot(mut props: PropertyMap) -> Snapshot {
         name: properties::take(&mut props, "Name"),
         alias: properties::take(&mut props, "Alias"),
         class: properties::take::<u32>(&mut props, "Class").map(DeviceClass),
+        appearance: properties::take(&mut props, "Appearance"),
         rssi: properties::take::<i16>(&mut props, "RSSI").map(Rssi),
         paired,
         // BlueZ < 5.65 has no separate `Bonded` property; `Paired` was the
@@ -124,6 +127,7 @@ impl BluezDevice {
             name: snap.name,
             alias: snap.alias,
             class: snap.class,
+            appearance: snap.appearance,
             rssi: snap.rssi,
             paired: snap.paired,
             bonded: snap.bonded,
@@ -153,8 +157,17 @@ impl crate::driver::Device for BluezDevice {
         self.alias.as_deref()
     }
 
+    async fn set_alias(&mut self, alias: &str) -> Result<(), DriverError> {
+        self.proxy.set_alias(alias).await.map_err(map_zbus_error)?;
+        self.refresh().await
+    }
+
     fn class(&self) -> Option<DeviceClass> {
         self.class
+    }
+
+    fn appearance(&self) -> Option<u16> {
+        self.appearance
     }
 
     fn rssi(&self) -> Option<Rssi> {
@@ -245,6 +258,7 @@ impl crate::driver::Device for BluezDevice {
         self.name = snap.name;
         self.alias = snap.alias;
         self.class = snap.class;
+        self.appearance = snap.appearance;
         self.rssi = snap.rssi;
         self.paired = snap.paired;
         self.bonded = snap.bonded;
