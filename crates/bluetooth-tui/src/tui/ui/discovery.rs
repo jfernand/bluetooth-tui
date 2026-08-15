@@ -80,8 +80,8 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
         .collect();
 
     let mut state = ListState::default();
-    if !indices.is_empty() {
-        state = state.with_selected(Some(app.device_idx.min(indices.len() - 1)));
+    if let Some(pos) = app.selected_visible_position() {
+        state = state.with_selected(Some(pos));
     }
     let list = List::new(items).highlight_style(Style::default().fg(theme::ON_AMBER).bg(theme::AMBER));
     frame.render_stateful_widget(list, area, &mut state);

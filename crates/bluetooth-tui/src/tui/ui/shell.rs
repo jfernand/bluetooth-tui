@@ -230,8 +230,8 @@ fn draw_devices(frame: &mut Frame, app: &App, area: Rect) {
         .map(|&i| device_row(&app.devices[i]))
         .collect();
     let mut state = ListState::default();
-    if !indices.is_empty() {
-        state = state.with_selected(Some(app.device_idx.min(indices.len() - 1)));
+    if let Some(pos) = app.selected_visible_position() {
+        state = state.with_selected(Some(pos));
     }
     let highlight = focus_style(app.focus == Focus::Devices);
     let list = List::new(items).highlight_style(highlight);

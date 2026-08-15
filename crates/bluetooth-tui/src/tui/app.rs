@@ -201,7 +201,12 @@ pub struct App {
     pub adapter_idx: usize,
     pub devices: Vec<BluezDevice>,
     pub device_filter: DeviceFilter,
-    pub device_idx: usize,
+    /// Which device is selected, tracked by address rather than position.
+    /// `visible_device_indices()` re-sorts by RSSI on every call, and
+    /// RSSI keeps changing during an active scan - a positional index
+    /// would silently point at a different device every time the list
+    /// reshuffles or refreshes.
+    pub selected_address: Option<Address>,
     pub focus: Focus,
     pub fullscreen_detail: bool,
     pub screen: Screen,
@@ -253,13 +258,13 @@ impl App {
             .filter(|a| a.is_discovering())
             .map(|_| Instant::now());
 
-        Ok(Self {
+        let mut app = Self {
             driver,
             adapters,
             adapter_idx: 0,
             devices,
             device_filter: DeviceFilter::All,
-            device_idx: 0,
+            selected_address: None,
             focus: Focus::Devices,
             fullscreen_detail: false,
             screen: Screen::Shell,
@@ -280,7 +285,9 @@ impl App {
             last_seen: HashMap::new(),
             devices_dirty: false,
             should_quit: false,
-        })
+        };
+        app.normalize_selection();
+        Ok(app)
     }
 
     pub fn current_adapter(&self) -> Option<&BluezAdapter> {
@@ -301,17 +308,37 @@ impl App {
         indices
     }
 
+    /// Position of `selected_address` within `visible_device_indices()`,
+    /// if it's currently visible under the active filter.
+    pub fn selected_visible_position(&self) -> Option<usize> {
+        let address = self.selected_address?;
+        self.visible_device_indices()
+            .iter()
+            .position(|&i| self.devices[i].address() == address)
+    }
+
     pub fn selected_device(&self) -> Option<&BluezDevice> {
-        let visible = self.visible_device_indices();
-        visible
-            .get(self.device_idx)
-            .and_then(|&i| self.devices.get(i))
+        let address = self.selected_address?;
+        self.devices.iter().find(|d| d.address() == address)
     }
 
     fn selected_device_mut(&mut self) -> Option<&mut BluezDevice> {
-        let visible = self.visible_device_indices();
-        let real_idx = *visible.get(self.device_idx)?;
-        self.devices.get_mut(real_idx)
+        let address = self.selected_address?;
+        self.devices.iter_mut().find(|d| d.address() == address)
+    }
+
+    /// Keeps `selected_address` pointing at a device that's actually
+    /// visible under the current filter, picking the first visible
+    /// device if the previous selection vanished or was never set. Call
+    /// after anything that can change `devices` or `device_filter`.
+    fn normalize_selection(&mut self) {
+        if self.selected_visible_position().is_some() {
+            return;
+        }
+        self.selected_address = self
+            .visible_device_indices()
+            .first()
+            .map(|&i| self.devices[i].address());
     }
 
     pub fn set_status_ok(&mut self, title: impl Into<String>, body: impl Into<String>) {
@@ -341,6 +368,10 @@ impl App {
             Err(e) => self.set_status_err("REFRESH FAILED", &e),
         }
         self.devices_dirty = false;
+        // Keep the same device selected by address across the refresh -
+        // RSSI (and therefore visible_device_indices()'s sort order)
+        // changes constantly during an active scan.
+        self.normalize_selection();
     }
 
     pub async fn on_tick(&mut self) {
@@ -508,7 +539,10 @@ impl App {
             KeyCode::Left => self.drill_out(),
             KeyCode::Tab => self.cycle_focus(),
             KeyCode::Char('f') => self.fullscreen_detail = !self.fullscreen_detail,
-            KeyCode::Char('/') => self.device_filter = self.device_filter.next(),
+            KeyCode::Char('/') => {
+                self.device_filter = self.device_filter.next();
+                self.normalize_selection();
+            }
             KeyCode::Char('v') => self.open_vendor_modal().await,
             KeyCode::Char('a') => self.begin_alias_edit(),
             KeyCode::Char('r') => self.refresh_devices().await,
@@ -629,16 +663,19 @@ impl App {
                         // it immediately rather than showing stale data
                         // from the wrong adapter until the next refresh.
                         self.devices.clear();
-                        self.device_idx = 0;
+                        self.selected_address = None;
                         self.devices_dirty = true;
                     }
                 }
             }
             Focus::Devices => {
-                let count = self.visible_device_indices().len();
-                if count > 0 {
-                    self.device_idx = wrap_index(self.device_idx, delta, count);
+                let visible = self.visible_device_indices();
+                if visible.is_empty() {
+                    return;
                 }
+                let current_pos = self.selected_visible_position().unwrap_or(0);
+                let new_pos = wrap_index(current_pos, delta, visible.len());
+                self.selected_address = Some(self.devices[visible[new_pos]].address());
             }
             Focus::Detail => {}
         }
@@ -669,11 +706,16 @@ impl App {
     }
 
     async fn toggle_scan(&mut self) {
-        let Some(adapter) = self.adapters.get_mut(self.adapter_idx) else {
+        let Some(discovering) = self.adapters.get(self.adapter_idx).map(Adapter::is_discovering)
+        else {
             return;
         };
-        let result = if adapter.is_discovering() {
+
+        let result = if discovering {
             self.scan_started_at = None;
+            let Some(adapter) = self.adapters.get_mut(self.adapter_idx) else {
+                return;
+            };
             adapter.stop_discovery().await
         } else {
             self.scan_started_at = Some(Instant::now());
@@ -683,7 +725,10 @@ impl App {
             // parallel selection/list for it.
             self.screen = Screen::Discovery;
             self.device_filter = DeviceFilter::Nearby;
-            self.device_idx = 0;
+            self.normalize_selection();
+            let Some(adapter) = self.adapters.get_mut(self.adapter_idx) else {
+                return;
+            };
             adapter.start_discovery().await
         };
         if let Err(e) = result {
