@@ -33,7 +33,7 @@ impl crate::driver::BluetoothDriver for BluezDriver {
             .await
             .map_err(map_fdo_error)?;
 
-        let ids: Vec<AdapterId> = objects
+        let mut ids: Vec<AdapterId> = objects
             .into_iter()
             .filter_map(|(object_path, interfaces)| {
                 let id = path::adapter_id_from_path(object_path.as_str())?;
@@ -43,6 +43,9 @@ impl crate::driver::BluetoothDriver for BluezDriver {
                     .then_some(id)
             })
             .collect();
+        // Sort by the trailing number ("hci2" before "hci10"), not the raw
+        // string ("hci10" < "hci2" lexicographically).
+        ids.sort_by_key(|id| (numeric_suffix(id), id.as_str().to_owned()));
 
         let mut adapters = Vec::with_capacity(ids.len());
         for id in ids {
@@ -61,5 +64,31 @@ impl crate::driver::BluetoothDriver for BluezDriver {
 
     async fn events(&self) -> Result<BluezEvents, DriverError> {
         BluezEvents::new(self.connection.clone()).await
+    }
+}
+
+/// The number after BlueZ's "hci" prefix, e.g. `hci10` -> `Some(10)`.
+fn numeric_suffix(id: &AdapterId) -> Option<u32> {
+    let s = id.as_str();
+    let digits_start = s.len() - s.chars().rev().take_while(|c| c.is_ascii_digit()).count();
+    s[digits_start..].parse().ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sorts_adapter_ids_numerically_not_lexicographically() {
+        let mut ids = vec![
+            AdapterId::new("hci10"),
+            AdapterId::new("hci2"),
+            AdapterId::new("hci0"),
+            AdapterId::new("hci1"),
+        ];
+        ids.sort_by_key(|id| (numeric_suffix(id), id.as_str().to_owned()));
+
+        let sorted: Vec<&str> = ids.iter().map(AdapterId::as_str).collect();
+        assert_eq!(sorted, ["hci0", "hci1", "hci2", "hci10"]);
     }
 }
