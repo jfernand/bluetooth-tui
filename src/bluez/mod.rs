@@ -14,6 +14,8 @@ mod path;
 mod properties;
 mod proxy;
 
+pub mod adapter;
 pub mod device;
 
+pub use adapter::BluezAdapter;
 pub use device::BluezDevice;
