@@ -1,7 +1,7 @@
 use std::future::Future;
 
 use crate::driver::error::DriverError;
-use crate::driver::types::{Address, AddressKind, DeviceClass, PnpId, Rssi, Uuid};
+use crate::driver::types::{Address, AddressKind, DeviceClass, DeviceInfo, PnpId, Rssi, Uuid};
 
 /// A remote Bluetooth device as seen through a specific local adapter —
 /// the driver-layer counterpart of what `bluetoothctl` prints per line
@@ -33,21 +33,46 @@ pub trait Device {
     /// during an active scan.
     fn rssi(&self) -> Option<Rssi>;
 
+    /// Advertised transmit power, in dBm - lets a listener estimate
+    /// distance from RSSI without needing a calibrated reference.
+    fn tx_power(&self) -> Option<i16>;
+
+    /// Freedesktop icon name hint (e.g. `"input-mouse"`, `"audio-headset"`),
+    /// BlueZ's own guess at how to depict the device, independent of the
+    /// more granular GAP Appearance value.
+    fn icon(&self) -> Option<&str>;
+
     fn is_paired(&self) -> bool;
     fn is_bonded(&self) -> bool;
     fn is_connected(&self) -> bool;
     fn is_trusted(&self) -> bool;
     fn is_blocked(&self) -> bool;
 
+    /// Whether pairing used the pre-4.1 method rather than Secure
+    /// Simple Pairing / LE Secure Connections.
+    fn is_legacy_pairing(&self) -> bool;
+
+    /// Whether GATT service discovery has completed for this device -
+    /// GATT reads (PnP ID, battery, ...) are only meaningful once true.
+    fn are_services_resolved(&self) -> bool;
+
+    /// Whether this device may wake the host from suspend.
+    fn is_wake_allowed(&self) -> bool;
+
     /// Service UUIDs advertised (LE) or discovered via SDP (classic).
     fn service_uuids(&self) -> &[Uuid];
 
-    /// Bluetooth SIG Company Identifiers seen in the device's advertising
-    /// Manufacturer Specific Data. Note this identifies whose *data
-    /// format* an advertisement uses, not necessarily who made the
-    /// device - many third-party accessories include e.g. a Microsoft
-    /// Swift Pair beacon alongside their own identity.
-    fn manufacturer_ids(&self) -> &[u16];
+    /// Advertising Manufacturer Specific Data: each Bluetooth SIG
+    /// Company Identifier seen, with its raw payload bytes. Note the
+    /// company ID identifies whose *data format* an advertisement uses,
+    /// not necessarily who made the device - many third-party
+    /// accessories include e.g. a Microsoft Swift Pair beacon alongside
+    /// their own identity.
+    fn manufacturer_data(&self) -> &[(u16, Vec<u8>)];
+
+    /// Advertising Service Data: each advertised service UUID paired
+    /// with whatever payload bytes it broadcasts alongside itself.
+    fn service_data(&self) -> &[(Uuid, Vec<u8>)];
 
     /// Reads the GATT Device Information Service's PnP ID characteristic
     /// (0x2A50) - the actual USB-VID equivalent, since its Vendor ID
@@ -61,6 +86,13 @@ pub trait Device {
     /// service-resolved connection; returns `Ok(None)` if the device
     /// doesn't expose it.
     fn battery_percent(&self) -> impl Future<Output = Result<Option<u8>, DriverError>> + Send;
+
+    /// Reads whichever of the GATT Device Information Service's
+    /// Manufacturer Name (0x2A29), Model Number (0x2A24), and Firmware
+    /// Revision (0x2A26) String characteristics the device exposes.
+    /// Requires an active, service-resolved connection; fields the
+    /// device doesn't expose come back `None` rather than erroring.
+    fn device_information(&self) -> impl Future<Output = Result<DeviceInfo, DriverError>> + Send;
 
     /// Initiate pairing/bonding. Resolves once bonding succeeds, fails,
     /// or is rejected by whatever pairing agent is registered.

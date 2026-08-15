@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use zbus::zvariant::OwnedValue;
 
-use crate::driver::{Address, AddressKind, DeviceClass, DriverError, PnpId, Rssi, Uuid};
+use crate::driver::{Address, AddressKind, DeviceClass, DeviceInfo, DriverError, PnpId, Rssi, Uuid};
 
 use super::error::map_zbus_error;
 use super::gatt;
@@ -25,14 +25,20 @@ pub struct BluezDevice {
     alias: Option<String>,
     class: Option<DeviceClass>,
     appearance: Option<u16>,
+    tx_power: Option<i16>,
+    icon: Option<String>,
     rssi: Option<Rssi>,
     paired: bool,
     bonded: bool,
     connected: bool,
     trusted: bool,
     blocked: bool,
+    legacy_pairing: bool,
+    services_resolved: bool,
+    wake_allowed: bool,
     service_uuids: Vec<Uuid>,
-    manufacturer_ids: Vec<u16>,
+    manufacturer_data: Vec<(u16, Vec<u8>)>,
+    service_data: Vec<(Uuid, Vec<u8>)>,
 }
 
 struct Snapshot {
@@ -41,24 +47,57 @@ struct Snapshot {
     alias: Option<String>,
     class: Option<DeviceClass>,
     appearance: Option<u16>,
+    tx_power: Option<i16>,
+    icon: Option<String>,
     rssi: Option<Rssi>,
     paired: bool,
     bonded: bool,
     connected: bool,
     trusted: bool,
     blocked: bool,
+    legacy_pairing: bool,
+    services_resolved: bool,
+    wake_allowed: bool,
     service_uuids: Vec<Uuid>,
-    manufacturer_ids: Vec<u16>,
+    manufacturer_data: Vec<(u16, Vec<u8>)>,
+    service_data: Vec<(Uuid, Vec<u8>)>,
 }
 
 fn snapshot(mut props: PropertyMap) -> Snapshot {
     let paired = properties::take_or_default(&mut props, "Paired");
+
+    let mut manufacturer_data: Vec<(u16, Vec<u8>)> =
+        properties::take::<HashMap<u16, OwnedValue>>(&mut props, "ManufacturerData")
+            .map(|m| {
+                m.into_iter()
+                    .filter_map(|(id, v)| Vec::<u8>::try_from(v).ok().map(|bytes| (id, bytes)))
+                    .collect()
+            })
+            .unwrap_or_default();
+    manufacturer_data.sort_unstable_by_key(|(id, _)| *id);
+
+    let mut service_data: Vec<(Uuid, Vec<u8>)> =
+        properties::take::<HashMap<String, OwnedValue>>(&mut props, "ServiceData")
+            .map(|m| {
+                m.into_iter()
+                    .filter_map(|(uuid, v)| {
+                        let uuid: Uuid = uuid.parse().ok()?;
+                        let bytes = Vec::<u8>::try_from(v).ok()?;
+                        Some((uuid, bytes))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+    service_data.sort_unstable_by_key(|(uuid, _)| uuid.0);
+
     Snapshot {
         address_kind: path::parse_address_kind(properties::take(&mut props, "AddressType")),
         name: properties::take(&mut props, "Name"),
         alias: properties::take(&mut props, "Alias"),
         class: properties::take::<u32>(&mut props, "Class").map(DeviceClass),
         appearance: properties::take(&mut props, "Appearance"),
+        tx_power: properties::take(&mut props, "TxPower"),
+        icon: properties::take(&mut props, "Icon"),
         rssi: properties::take::<i16>(&mut props, "RSSI").map(Rssi),
         paired,
         // BlueZ < 5.65 has no separate `Bonded` property; `Paired` was the
@@ -67,21 +106,16 @@ fn snapshot(mut props: PropertyMap) -> Snapshot {
         connected: properties::take_or_default(&mut props, "Connected"),
         trusted: properties::take_or_default(&mut props, "Trusted"),
         blocked: properties::take_or_default(&mut props, "Blocked"),
+        legacy_pairing: properties::take_or_default(&mut props, "LegacyPairing"),
+        services_resolved: properties::take_or_default(&mut props, "ServicesResolved"),
+        wake_allowed: properties::take_or_default(&mut props, "WakeAllowed"),
         service_uuids: properties::take::<Vec<String>>(&mut props, "UUIDs")
             .unwrap_or_default()
             .into_iter()
             .filter_map(|s| s.parse().ok())
             .collect(),
-        manufacturer_ids: {
-            let mut ids: Vec<u16> = properties::take::<HashMap<u16, OwnedValue>>(
-                &mut props,
-                "ManufacturerData",
-            )
-            .map(|m| m.into_keys().collect())
-            .unwrap_or_default();
-            ids.sort_unstable();
-            ids
-        },
+        manufacturer_data,
+        service_data,
     }
 }
 
@@ -128,14 +162,20 @@ impl BluezDevice {
             alias: snap.alias,
             class: snap.class,
             appearance: snap.appearance,
+            tx_power: snap.tx_power,
+            icon: snap.icon,
             rssi: snap.rssi,
             paired: snap.paired,
             bonded: snap.bonded,
             connected: snap.connected,
             trusted: snap.trusted,
             blocked: snap.blocked,
+            legacy_pairing: snap.legacy_pairing,
+            services_resolved: snap.services_resolved,
+            wake_allowed: snap.wake_allowed,
             service_uuids: snap.service_uuids,
-            manufacturer_ids: snap.manufacturer_ids,
+            manufacturer_data: snap.manufacturer_data,
+            service_data: snap.service_data,
         })
     }
 }
@@ -170,6 +210,14 @@ impl crate::driver::Device for BluezDevice {
         self.appearance
     }
 
+    fn tx_power(&self) -> Option<i16> {
+        self.tx_power
+    }
+
+    fn icon(&self) -> Option<&str> {
+        self.icon.as_deref()
+    }
+
     fn rssi(&self) -> Option<Rssi> {
         self.rssi
     }
@@ -194,12 +242,28 @@ impl crate::driver::Device for BluezDevice {
         self.blocked
     }
 
+    fn is_legacy_pairing(&self) -> bool {
+        self.legacy_pairing
+    }
+
+    fn are_services_resolved(&self) -> bool {
+        self.services_resolved
+    }
+
+    fn is_wake_allowed(&self) -> bool {
+        self.wake_allowed
+    }
+
     fn service_uuids(&self) -> &[Uuid] {
         &self.service_uuids
     }
 
-    fn manufacturer_ids(&self) -> &[u16] {
-        &self.manufacturer_ids
+    fn manufacturer_data(&self) -> &[(u16, Vec<u8>)] {
+        &self.manufacturer_data
+    }
+
+    fn service_data(&self) -> &[(Uuid, Vec<u8>)] {
+        &self.service_data
     }
 
     async fn pnp_id(&self) -> Result<Option<PnpId>, DriverError> {
@@ -208,6 +272,10 @@ impl crate::driver::Device for BluezDevice {
 
     async fn battery_percent(&self) -> Result<Option<u8>, DriverError> {
         gatt::read_battery_level(&self.connection, &self.object_path).await
+    }
+
+    async fn device_information(&self) -> Result<DeviceInfo, DriverError> {
+        gatt::read_device_information(&self.connection, &self.object_path).await
     }
 
     async fn pair(&mut self) -> Result<(), DriverError> {
@@ -263,14 +331,20 @@ impl crate::driver::Device for BluezDevice {
         self.alias = snap.alias;
         self.class = snap.class;
         self.appearance = snap.appearance;
+        self.tx_power = snap.tx_power;
+        self.icon = snap.icon;
         self.rssi = snap.rssi;
         self.paired = snap.paired;
         self.bonded = snap.bonded;
         self.connected = snap.connected;
         self.trusted = snap.trusted;
         self.blocked = snap.blocked;
+        self.legacy_pairing = snap.legacy_pairing;
+        self.services_resolved = snap.services_resolved;
+        self.wake_allowed = snap.wake_allowed;
         self.service_uuids = snap.service_uuids;
-        self.manufacturer_ids = snap.manufacturer_ids;
+        self.manufacturer_data = snap.manufacturer_data;
+        self.service_data = snap.service_data;
         Ok(())
     }
 }

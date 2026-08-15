@@ -117,7 +117,7 @@ pub fn quick_vendor_label(device: &BluezDevice) -> Option<String> {
     if let Some(vendor) = bluetooth_driver::oui::vendor(address) {
         return Some(vendor.to_owned());
     }
-    if let Some(&id) = device.manufacturer_ids().first() {
+    if let Some(&(id, _)) = device.manufacturer_data().first() {
         return Some(match bluetooth_driver::company_id::vendor(id) {
             Some(name) => name.to_owned(),
             None => format!("0x{id:04X}"),
@@ -158,7 +158,7 @@ impl VendorAttribution {
             "Connected, but no PnP ID characteristic exposed."
         };
 
-        let beacon_id = device.manufacturer_ids().first().copied();
+        let beacon_id = device.manufacturer_data().first().map(|&(id, _)| id);
         let beacon_result = beacon_id.map(|id| match bluetooth_driver::company_id::vendor(id) {
             Some(name) => name.to_owned(),
             None => format!("0x{id:04X} (unresolved)"),

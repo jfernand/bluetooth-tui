@@ -125,6 +125,16 @@ pub enum VendorIdSource {
     Usb,
 }
 
+/// A handful of the GATT Device Information Service's other
+/// characteristics — plain UTF-8 text fields describing the device
+/// itself, separate from the more structured `PnpId`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DeviceInfo {
+    pub manufacturer: Option<String>,
+    pub model: Option<String>,
+    pub firmware: Option<String>,
+}
+
 /// A 128-bit Bluetooth UUID (service/characteristic/profile identifier).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Uuid(pub u128);
