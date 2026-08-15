@@ -1,3 +1,4 @@
+use std::fmt;
 use std::future::Future;
 
 use crate::driver::adapter::Adapter;
@@ -39,4 +40,33 @@ pub enum DriverEvent {
     DeviceRemoved { adapter: AdapterId, address: Address },
     DiscoveringChanged { adapter: AdapterId, discovering: bool },
     PoweredChanged { adapter: AdapterId, powered: bool },
+}
+
+impl fmt::Display for DriverEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::AdapterAdded(id) => write!(f, "adapter {id} added"),
+            Self::AdapterRemoved(id) => write!(f, "adapter {id} removed"),
+            Self::DeviceFound { adapter, address } => {
+                write!(f, "[{adapter}] device {address} found")
+            }
+            Self::DeviceUpdated { adapter, address } => {
+                write!(f, "[{adapter}] device {address} updated")
+            }
+            Self::DeviceRemoved { adapter, address } => {
+                write!(f, "[{adapter}] device {address} removed")
+            }
+            Self::DiscoveringChanged {
+                adapter,
+                discovering,
+            } => {
+                let state = if *discovering { "started" } else { "stopped" };
+                write!(f, "[{adapter}] discovery {state}")
+            }
+            Self::PoweredChanged { adapter, powered } => {
+                let state = if *powered { "powered on" } else { "powered off" };
+                write!(f, "[{adapter}] {state}")
+            }
+        }
+    }
 }
