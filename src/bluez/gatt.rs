@@ -1,5 +1,5 @@
 //! Minimal GATT client support: just enough to find and read a single
-//! characteristic by UUID under a device's object subtree.
+//! well-known characteristic by UUID under a device's object subtree.
 
 use std::collections::HashMap;
 
@@ -12,11 +12,32 @@ use super::proxy;
 /// GATT Device Information Service's PnP ID characteristic UUID.
 const PNP_ID_UUID: &str = "00002a50-0000-1000-8000-00805f9b34fb";
 
+/// GATT Battery Service's Battery Level characteristic UUID.
+const BATTERY_LEVEL_UUID: &str = "00002a19-0000-1000-8000-00805f9b34fb";
+
 pub(crate) async fn read_pnp_id(
     connection: &zbus::Connection,
     device_path: &str,
 ) -> Result<Option<PnpId>, DriverError> {
-    let Some(characteristic_path) = find_characteristic(connection, device_path, PNP_ID_UUID).await?
+    let value = read_characteristic(connection, device_path, PNP_ID_UUID).await?;
+    Ok(value.and_then(|bytes| PnpId::parse(&bytes)))
+}
+
+/// Battery Level is a single unsigned octet: 0-100, a percentage.
+pub(crate) async fn read_battery_level(
+    connection: &zbus::Connection,
+    device_path: &str,
+) -> Result<Option<u8>, DriverError> {
+    let value = read_characteristic(connection, device_path, BATTERY_LEVEL_UUID).await?;
+    Ok(value.and_then(|bytes| bytes.first().copied()))
+}
+
+async fn read_characteristic(
+    connection: &zbus::Connection,
+    device_path: &str,
+    uuid: &str,
+) -> Result<Option<Vec<u8>>, DriverError> {
+    let Some(characteristic_path) = find_characteristic(connection, device_path, uuid).await?
     else {
         return Ok(None);
     };
@@ -28,7 +49,7 @@ pub(crate) async fn read_pnp_id(
         .read_value(HashMap::new())
         .await
         .map_err(map_zbus_error)?;
-    Ok(PnpId::parse(&value))
+    Ok(Some(value))
 }
 
 async fn find_characteristic(

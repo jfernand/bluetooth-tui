@@ -206,6 +206,10 @@ impl crate::driver::Device for BluezDevice {
         gatt::read_pnp_id(&self.connection, &self.object_path).await
     }
 
+    async fn battery_percent(&self) -> Result<Option<u8>, DriverError> {
+        gatt::read_battery_level(&self.connection, &self.object_path).await
+    }
+
     async fn pair(&mut self) -> Result<(), DriverError> {
         self.proxy.pair().await.map_err(map_zbus_error)?;
         self.refresh().await

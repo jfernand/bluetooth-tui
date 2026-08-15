@@ -56,6 +56,12 @@ pub trait Device {
     /// connection; returns `Ok(None)` if the device doesn't expose it.
     fn pnp_id(&self) -> impl Future<Output = Result<Option<PnpId>, DriverError>> + Send;
 
+    /// Reads the GATT Battery Service's Battery Level characteristic
+    /// (0x2A19) as a 0-100 percentage. Requires an active,
+    /// service-resolved connection; returns `Ok(None)` if the device
+    /// doesn't expose it.
+    fn battery_percent(&self) -> impl Future<Output = Result<Option<u8>, DriverError>> + Send;
+
     /// Initiate pairing/bonding. Resolves once bonding succeeds, fails,
     /// or is rejected by whatever pairing agent is registered.
     fn pair(&mut self) -> impl Future<Output = Result<(), DriverError>> + Send;
