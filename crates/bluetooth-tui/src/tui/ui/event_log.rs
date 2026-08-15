@@ -17,6 +17,7 @@ pub fn draw(frame: &mut Frame, app: &App, area: Rect) {
 
     widgets::header(
         frame,
+        app,
         rows[0],
         "EVENTS",
         Line::from(widgets::muted_value(format!("{} total", app.events.len()))),

@@ -110,7 +110,7 @@ fn draw_header(frame: &mut Frame, app: &App, area: Rect) {
         right.push(widgets::muted_value(format!("events {}", app.events.len())));
     }
 
-    widgets::header(frame, area, "BLUETOOTH EXPLORER", Line::from(right));
+    widgets::header(frame, app, area, "BLUETOOTH EXPLORER", Line::from(right));
 }
 
 fn draw_breadcrumb(frame: &mut Frame, app: &App, area: Rect) {

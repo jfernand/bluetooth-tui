@@ -17,7 +17,7 @@ pub fn draw(frame: &mut Frame, app: &App, area: Rect) {
         .split(area);
 
     let Some(adapter) = app.current_adapter() else {
-        widgets::header(frame, rows[0], "ADAPTER", Line::default());
+        widgets::header(frame, app, rows[0], "ADAPTER", Line::default());
         frame.render_widget(
             Paragraph::new("no adapter").style(Style::default().fg(theme::TEXT_MUTED)),
             rows[1],
@@ -27,6 +27,7 @@ pub fn draw(frame: &mut Frame, app: &App, area: Rect) {
 
     widgets::header(
         frame,
+        app,
         rows[0],
         &format!("ADAPTER · {}", adapter.id()),
         Line::from(widgets::muted_value("esc back")),

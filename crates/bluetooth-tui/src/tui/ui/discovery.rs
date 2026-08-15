@@ -29,7 +29,7 @@ pub fn draw(frame: &mut Frame, app: &App, area: Rect) {
     } else {
         Span::styled("STOPPED", Style::default().fg(theme::TEXT_MUTED))
     };
-    widgets::header(frame, rows[0], "DISCOVERY", Line::from(status));
+    widgets::header(frame, app, rows[0], "DISCOVERY", Line::from(status));
 
     let cols = Layout::default()
         .direction(Direction::Horizontal)

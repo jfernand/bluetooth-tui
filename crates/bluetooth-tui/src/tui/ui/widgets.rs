@@ -4,12 +4,14 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-use crate::tui::app::{BannerKind, StatusBanner};
+use crate::tui::app::{App, BannerKind, StatusBanner};
 use crate::tui::theme;
 
 /// The amber title bar every screen opens with: a label on the left, an
-/// optional line of status chips on the right.
-pub fn header(frame: &mut Frame, area: Rect, title: &str, right: Line<'_>) {
+/// optional line of status chips on the right. Every screen routes through
+/// here so the "bluetoothd unresponsive" badge shows up everywhere for
+/// free, instead of every screen having to remember to render it.
+pub fn header(frame: &mut Frame, app: &App, area: Rect, title: &str, right: Line<'_>) {
     let block = Block::default().style(Style::default().bg(theme::BG_BAR));
     frame.render_widget(block, area);
 
@@ -21,7 +23,19 @@ pub fn header(frame: &mut Frame, area: Rect, title: &str, right: Line<'_>) {
     )));
     frame.render_widget(title, inset(area, 1, 0));
 
-    let right = Paragraph::new(right).alignment(Alignment::Right);
+    let mut spans = Vec::with_capacity(right.spans.len() + 2);
+    if let Some(since) = app.bluez_unresponsive_since {
+        spans.push(Span::styled(
+            format!(" ⚠ BLUEZ NOT RESPONDING · {}s ", since.elapsed().as_secs()),
+            Style::default()
+                .fg(theme::ON_AMBER)
+                .bg(theme::ERROR_FG)
+                .add_modifier(Modifier::BOLD),
+        ));
+        spans.push(Span::raw("  "));
+    }
+    spans.extend(right.spans);
+    let right = Paragraph::new(Line::from(spans)).alignment(Alignment::Right);
     frame.render_widget(right, inset(area, 0, 1));
 }
 
