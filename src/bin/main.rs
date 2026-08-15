@@ -2,7 +2,7 @@ use bluetooth_tui::bluez::BluezDriver;
 use bluetooth_tui::driver::{self, Adapter, BluetoothDriver, DriverEvent, EventStream};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<()> {
     let driver = BluezDriver::system().await?;
 
     let adapter = driver
