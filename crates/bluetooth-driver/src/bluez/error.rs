@@ -23,6 +23,14 @@ pub(crate) fn map_zbus_error(err: zbus::Error) -> DriverError {
             other => DriverError::Backend(detail.clone().unwrap_or_else(|| other.to_string())),
         };
     }
+    // `Connection::builder().method_timeout(...)` expiring surfaces as a
+    // plain io::Error(TimedOut) wrapped in InputOutput, not a MethodError
+    // - it never got a reply to inspect, D-Bus or otherwise.
+    if let zbus::Error::InputOutput(io_err) = &err
+        && io_err.kind() == std::io::ErrorKind::TimedOut
+    {
+        return DriverError::Timeout;
+    }
     DriverError::Backend(err.to_string())
 }
 

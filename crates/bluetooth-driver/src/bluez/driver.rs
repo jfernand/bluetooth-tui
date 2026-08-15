@@ -1,9 +1,23 @@
+use std::time::Duration;
+
 use crate::driver::{AdapterId, DriverError};
 
 use super::adapter::BluezAdapter;
 use super::error::{map_fdo_error, map_zbus_error};
 use super::events::BluezEvents;
 use super::path;
+
+/// Bound every D-Bus method call to this long rather than none at all.
+/// `zbus::Connection::system()` applies no timeout by default, so a
+/// bluetoothd restart (or any other moment it stops answering) would
+/// otherwise hang whatever call is in flight forever - and since this
+/// app's event loop runs one call to completion before it can process
+/// its next key press or redraw, that's a fully frozen UI, not just a
+/// slow one. 30s errs on the generous side deliberately: it's long
+/// enough that a real Pair() needing interactive confirmation elsewhere
+/// on the system won't get cut off, while still turning "hangs forever"
+/// into "recovers within half a minute at worst".
+const METHOD_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Entry point into BlueZ over the system D-Bus bus.
 pub struct BluezDriver {
@@ -14,7 +28,12 @@ impl BluezDriver {
     /// Connect to `bluetoothd` over the system bus, the same one
     /// `bluetoothctl` talks to.
     pub async fn system() -> Result<Self, DriverError> {
-        let connection = zbus::Connection::system().await.map_err(map_zbus_error)?;
+        let connection = zbus::connection::Builder::system()
+            .map_err(map_zbus_error)?
+            .method_timeout(METHOD_TIMEOUT)
+            .build()
+            .await
+            .map_err(map_zbus_error)?;
         Ok(Self { connection })
     }
 }
