@@ -11,7 +11,7 @@ use std::sync::OnceLock;
 
 use crate::driver::Address;
 
-const DATA: &str = include_str!("oui_data.tsv");
+const DATA: &str = include_str!("../data/oui_data.tsv");
 
 fn table() -> &'static [(u32, &'static str)] {
     static TABLE: OnceLock<Vec<(u32, &'static str)>> = OnceLock::new();

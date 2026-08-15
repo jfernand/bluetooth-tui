@@ -11,7 +11,7 @@
 
 use std::sync::OnceLock;
 
-const DATA: &str = include_str!("usb_vendor_data.tsv");
+const DATA: &str = include_str!("../data/usb_vendor_data.tsv");
 
 fn table() -> &'static [(u16, &'static str)] {
     static TABLE: OnceLock<Vec<(u16, &'static str)>> = OnceLock::new();

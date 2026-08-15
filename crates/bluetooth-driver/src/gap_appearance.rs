@@ -12,7 +12,7 @@
 
 use std::sync::OnceLock;
 
-const DATA: &str = include_str!("gap_appearance_data.tsv");
+const DATA: &str = include_str!("../data/gap_appearance_data.tsv");
 
 fn table() -> &'static [(u16, &'static str)] {
     static TABLE: OnceLock<Vec<(u16, &'static str)>> = OnceLock::new();

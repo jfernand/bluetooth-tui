@@ -15,8 +15,8 @@ use std::sync::OnceLock;
 
 use crate::driver::Uuid;
 
-const SERVICE_DATA: &str = include_str!("gatt_service_data.tsv");
-const CHARACTERISTIC_DATA: &str = include_str!("gatt_characteristic_data.tsv");
+const SERVICE_DATA: &str = include_str!("../data/gatt_service_data.tsv");
+const CHARACTERISTIC_DATA: &str = include_str!("../data/gatt_characteristic_data.tsv");
 
 fn parse(data: &'static str) -> Vec<(u128, &'static str)> {
     let mut entries: Vec<(u128, &'static str)> = data
