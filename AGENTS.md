@@ -8,3 +8,6 @@
   underlying source happened to produce (hash map iteration, D-Bus reply
   order, etc.). Predictable ordering makes output stable across runs, which
   matters for visual inspection, diffing, and tests.
+- Error handling: use `anyhow` in binaries (`src/bin/*.rs`), `thiserror` for
+  error types defined everywhere else (library crates, `src/driver`,
+  backend implementations like `src/bluez`).
