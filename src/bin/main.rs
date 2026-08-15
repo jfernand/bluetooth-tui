@@ -1,6 +1,6 @@
 use bluetooth_tui::bluez::BluezDriver;
 use bluetooth_tui::driver::{self, Adapter, BluetoothDriver, DriverEvent, EventStream, VendorIdSource};
-use bluetooth_tui::{company_id, oui};
+use bluetooth_tui::{company_id, oui, usb_vendor};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -60,7 +60,7 @@ async fn vendor_label(device: &impl driver::Device) -> String {
     if let Ok(Some(pnp_id)) = device.pnp_id().await {
         let vendor = match pnp_id.vendor_id_source {
             VendorIdSource::BluetoothSig => company_id::vendor(pnp_id.vendor_id),
-            VendorIdSource::Usb => None,
+            VendorIdSource::Usb => usb_vendor::vendor(pnp_id.vendor_id),
         };
         let source = match pnp_id.vendor_id_source {
             VendorIdSource::BluetoothSig => "BT-SIG",
