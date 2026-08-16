@@ -1,12 +1,12 @@
-use bluetooth_driver::driver::{Adapter, AddressKind, Device, VendorIdSource};
+use bluetooth_driver::driver::{Adapter, AddressKind, BluetoothDriver, Device, VendorIdSource};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 
-use crate::tui::app::App;
-use crate::tui::theme;
+use crate::app::App;
+use crate::theme;
 
 use super::widgets;
 
@@ -15,7 +15,7 @@ const MAX_UUIDS_SHOWN: usize = 20;
 /// The fullscreen raw-property dump (`f` in the Shell screen): every
 /// BlueZ `Device1` property we track, plus advertising data and GATT
 /// Device Information, split into two columns.
-pub fn draw(frame: &mut Frame, app: &App, area: Rect) {
+pub fn draw<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(1), Constraint::Min(3)])
@@ -39,7 +39,7 @@ pub fn draw(frame: &mut Frame, app: &App, area: Rect) {
     draw_right(frame, app, device, cols[1]);
 }
 
-fn draw_sub_header(frame: &mut Frame, app: &App, device: &impl Device, area: Rect) {
+fn draw_sub_header<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, device: &impl Device, area: Rect) {
     frame.render_widget(Block::default().style(Style::default().bg(theme::BG_BAR)), area);
 
     let name = device
@@ -83,7 +83,7 @@ fn yes_no(set: bool) -> Span<'static> {
 // Built incrementally with real conditionals threaded throughout, so a
 // `vec![]` literal (clippy's usual suggestion here) doesn't fit.
 #[allow(clippy::vec_init_then_push)]
-fn draw_left(frame: &mut Frame, app: &App, device: &impl Device, area: Rect) {
+fn draw_left<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, device: &impl Device, area: Rect) {
     let mut lines: Vec<Line> = Vec::new();
 
     lines.push(widgets::section_title("IDENTITY"));
@@ -178,7 +178,7 @@ fn draw_left(frame: &mut Frame, app: &App, device: &impl Device, area: Rect) {
     frame.render_widget(Paragraph::new(lines), area);
 }
 
-fn draw_right(frame: &mut Frame, app: &App, device: &impl Device, area: Rect) {
+fn draw_right<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, device: &impl Device, area: Rect) {
     let mut lines: Vec<Line> = Vec::new();
 
     let uuids = device.service_uuids();

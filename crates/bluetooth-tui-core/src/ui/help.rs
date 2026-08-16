@@ -4,7 +4,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
-use crate::tui::theme;
+use crate::theme;
 
 const NAVIGATE: &[(&str, &str)] = &[
     ("↑ ↓", "move"),

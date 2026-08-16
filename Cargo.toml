@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/bluetooth-driver", "crates/bluetooth-tui"]
+members = ["crates/bluetooth-driver", "crates/bluetooth-tui", "crates/bluetooth-tui-core"]
 
 # Fast iteration: keep our own crates unoptimized (cheap to recompile),
 # but build dependencies at opt-level 3 once and reuse them.

@@ -1,16 +1,16 @@
-use bluetooth_driver::driver::{Adapter, Device};
+use bluetooth_driver::driver::{Adapter, BluetoothDriver, Device};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, ListState, Paragraph};
 
-use crate::tui::app::App;
-use crate::tui::theme;
+use crate::app::App;
+use crate::theme;
 
 use super::widgets;
 
-pub fn draw(frame: &mut Frame, app: &App, area: Rect) {
+pub fn draw<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(1), Constraint::Min(3), Constraint::Length(1)])
@@ -54,7 +54,7 @@ pub fn draw(frame: &mut Frame, app: &App, area: Rect) {
     }
 }
 
-fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
+fn draw_list<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let indices = app.visible_device_indices();
     let items: Vec<ListItem> = indices
         .iter()
@@ -65,7 +65,7 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
                 .or(d.name())
                 .map(str::to_owned)
                 .unwrap_or_else(|| "Unknown".to_owned());
-            let vendor = crate::tui::app::quick_vendor_label(d).unwrap_or_else(|| "—".to_owned());
+            let vendor = crate::app::quick_vendor_label(d).unwrap_or_else(|| "—".to_owned());
             let rssi = d.rssi().map(|r| r.0.to_string()).unwrap_or_default();
             ListItem::new(Line::from(vec![
                 Span::raw(format!(" {name:<24.24} ")),
@@ -87,7 +87,7 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_stateful_widget(list, area, &mut state);
 }
 
-fn draw_candidate(frame: &mut Frame, app: &App, area: Rect) {
+fn draw_candidate<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let Some(device) = app.selected_device() else {
         frame.render_widget(
             Paragraph::new("no devices found yet").style(Style::default().fg(theme::TEXT_MUTED)),
@@ -121,7 +121,7 @@ fn draw_candidate(frame: &mut Frame, app: &App, area: Rect) {
             10,
         ));
     }
-    match crate::tui::app::quick_vendor_label(device) {
+    match crate::app::quick_vendor_label(device) {
         Some(v) => lines.push(widgets::field_line("vendor", widgets::amber_value(v), 10)),
         None => lines.push(widgets::field_line("vendor", widgets::muted_value("unresolved"), 10)),
     }

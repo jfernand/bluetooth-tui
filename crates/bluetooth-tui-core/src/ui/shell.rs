@@ -1,16 +1,16 @@
-use bluetooth_driver::driver::{Adapter, Device};
+use bluetooth_driver::driver::{Adapter, BluetoothDriver, Device};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 
-use crate::tui::app::{App, DeviceFilter, Focus};
-use crate::tui::theme;
+use crate::app::{App, DeviceFilter, Focus};
+use crate::theme;
 
 use super::widgets;
 
-pub fn draw(frame: &mut Frame, app: &App, area: Rect) {
+pub fn draw<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -67,7 +67,7 @@ pub fn draw(frame: &mut Frame, app: &App, area: Rect) {
     }
 }
 
-fn draw_header(frame: &mut Frame, app: &App, area: Rect) {
+fn draw_header<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let mut right = vec![];
     if let Some(adapter) = app.current_adapter() {
         let power = if adapter.is_powered() {
@@ -113,7 +113,7 @@ fn draw_header(frame: &mut Frame, app: &App, area: Rect) {
     widgets::header(frame, app, area, "BLUETOOTH EXPLORER", Line::from(right));
 }
 
-fn draw_breadcrumb(frame: &mut Frame, app: &App, area: Rect) {
+fn draw_breadcrumb<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let mut spans = vec![widgets::muted_value("adapters")];
     if let Some(adapter) = app.current_adapter() {
         spans.push(Span::styled(" / ", Style::default().fg(theme::TEXT_VERY_DIM)));
@@ -133,7 +133,7 @@ fn draw_breadcrumb(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
-fn draw_adapters(frame: &mut Frame, app: &App, area: Rect) {
+fn draw_adapters<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let block = Block::default()
         .borders(Borders::RIGHT)
         .border_style(Style::default().fg(theme::BORDER))
@@ -177,7 +177,7 @@ fn draw_adapters(frame: &mut Frame, app: &App, area: Rect) {
     }
 }
 
-fn draw_devices(frame: &mut Frame, app: &App, area: Rect) {
+fn draw_devices<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let block = Block::default()
         .borders(Borders::RIGHT)
         .border_style(Style::default().fg(theme::BORDER))
@@ -238,7 +238,7 @@ fn draw_devices(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_stateful_widget(list, rows[2], &mut state);
 }
 
-fn device_row(device: &bluetooth_driver::bluez::BluezDevice) -> ListItem<'static> {
+fn device_row<Dev: Device>(device: &Dev) -> ListItem<'static> {
     let name = device
         .alias()
         .or(device.name())
@@ -277,7 +277,7 @@ fn device_row(device: &bluetooth_driver::bluez::BluezDevice) -> ListItem<'static
     ListItem::new(line)
 }
 
-fn draw_detail(frame: &mut Frame, app: &App, area: Rect) {
+fn draw_detail<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let block = Block::default().borders(Borders::NONE);
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -337,7 +337,7 @@ fn draw_detail(frame: &mut Frame, app: &App, area: Rect) {
     lines.push(Line::default());
 
     lines.push(widgets::section_title("VENDOR"));
-    match crate::tui::app::quick_vendor_label(device) {
+    match crate::app::quick_vendor_label(device) {
         Some(v) => lines.push(widgets::field_line("guess", widgets::amber_value(v), 12)),
         None => lines.push(widgets::field_line("guess", widgets::muted_value("unresolved"), 12)),
     }

@@ -1,16 +1,16 @@
-use bluetooth_driver::driver::Device;
+use bluetooth_driver::driver::{BluetoothDriver, Device};
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
-use crate::tui::app::App;
-use crate::tui::theme;
+use crate::app::App;
+use crate::theme;
 
 use super::widgets;
 
-pub fn draw_vendor(frame: &mut Frame, app: &App, area: Rect) {
+pub fn draw_vendor<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let modal = super::centered_rect(76, 22, area);
     frame.render_widget(Clear, modal);
 
@@ -78,7 +78,7 @@ pub fn draw_vendor(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(Paragraph::new(lines), inner);
 }
 
-pub fn draw_alias_edit(frame: &mut Frame, app: &App, area: Rect) {
+pub fn draw_alias_edit<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let modal = super::centered_rect(66, 8, area);
     frame.render_widget(Clear, modal);
 
@@ -121,7 +121,7 @@ pub fn draw_alias_edit(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(Paragraph::new(lines), inner);
 }
 
-pub fn draw_confirm_forget(frame: &mut Frame, app: &App, area: Rect) {
+pub fn draw_confirm_forget<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let modal = super::centered_rect(60, 6, area);
     frame.render_widget(Clear, modal);
 
@@ -156,8 +156,8 @@ pub fn draw_confirm_forget(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(Paragraph::new(lines), inner);
 }
 
-pub fn draw_palette(frame: &mut Frame, app: &App, area: Rect) {
-    let matches = crate::tui::app::PaletteCommand::filtered(&app.palette_buffer);
+pub fn draw_palette<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
+    let matches = crate::app::PaletteCommand::filtered(&app.palette_buffer);
 
     // Content is one input line plus one line per match (or one "no
     // matching command" line), plus two rows for the top/bottom border.

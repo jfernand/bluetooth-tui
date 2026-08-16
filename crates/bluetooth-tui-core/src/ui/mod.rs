@@ -11,11 +11,12 @@ use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Block;
+use bluetooth_driver::driver::BluetoothDriver;
 
-use crate::tui::app::{App, Overlay, Screen};
-use crate::tui::theme;
+use crate::app::{App, Overlay, Screen};
+use crate::theme;
 
-pub fn draw(frame: &mut Frame, app: &App) {
+pub fn draw<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>) {
     let area = frame.area();
     frame.render_widget(Block::default().style(Style::default().bg(theme::BG_BASE)), area);
 

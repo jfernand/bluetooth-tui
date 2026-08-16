@@ -4,14 +4,15 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-use crate::tui::app::{App, BannerKind, StatusBanner};
-use crate::tui::theme;
+use crate::app::{App, BannerKind, StatusBanner};
+use bluetooth_driver::driver::BluetoothDriver;
+use crate::theme;
 
 /// The amber title bar every screen opens with: a label on the left, an
 /// optional line of status chips on the right. Every screen routes through
 /// here so the "bluetoothd unresponsive" badge shows up everywhere for
 /// free, instead of every screen having to remember to render it.
-pub fn header(frame: &mut Frame, app: &App, area: Rect, title: &str, right: Line<'_>) {
+pub fn header<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect, title: &str, right: Line<'_>) {
     let block = Block::default().style(Style::default().bg(theme::BG_BAR));
     frame.render_widget(block, area);
 

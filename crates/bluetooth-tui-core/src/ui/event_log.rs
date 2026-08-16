@@ -2,14 +2,15 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
+use bluetooth_driver::driver::BluetoothDriver;
 use ratatui::widgets::{List, ListItem};
 
-use crate::tui::app::App;
-use crate::tui::theme;
+use crate::app::App;
+use crate::theme;
 
 use super::widgets;
 
-pub fn draw(frame: &mut Frame, app: &App, area: Rect) {
+pub fn draw<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(1), Constraint::Min(3), Constraint::Length(1)])

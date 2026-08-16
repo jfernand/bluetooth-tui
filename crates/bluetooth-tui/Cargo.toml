@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.104"
 bluetooth-driver = { path = "../bluetooth-driver" }
+bluetooth-tui-core = { path = "../bluetooth-tui-core" }
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 futures-util = "0.3.34"
 ratatui = "0.30.2"

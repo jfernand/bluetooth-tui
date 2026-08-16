@@ -2,11 +2,16 @@ use std::collections::{HashMap, VecDeque};
 use std::future::Future;
 use std::time::{Duration, Instant};
 
-use bluetooth_driver::bluez::{BluezAdapter, BluezDevice, BluezDriver};
 use bluetooth_driver::driver::{
     Adapter, Address, BluetoothDriver, Device, DeviceInfo, DriverError, DriverEvent, PnpId,
     VendorIdSource,
 };
+
+use crate::key::Key;
+
+/// The device type a given driver's adapters hand out - spelled out once
+/// here since `<D::Adapter as Adapter>::Device` gets verbose fast.
+type DeviceOf<D> = <<D as BluetoothDriver>::Adapter as Adapter>::Device;
 
 const BATTERY_REFRESH_INTERVAL: Duration = Duration::from_secs(10);
 const FULL_INFO_REFRESH_INTERVAL: Duration = Duration::from_secs(15);
@@ -70,7 +75,7 @@ impl DeviceFilter {
         }
     }
 
-    pub fn matches(self, device: &BluezDevice) -> bool {
+    pub fn matches<Dev: Device>(self, device: &Dev) -> bool {
         match self {
             Self::All => true,
             Self::Paired => device.is_paired(),
@@ -126,7 +131,7 @@ pub struct VendorAttribution {
 /// company ID) - the full chain, including a live GATT PnP ID read, is
 /// only worth the round trip when the user actually opens the vendor
 /// modal for one specific device.
-pub fn quick_vendor_label(device: &BluezDevice) -> Option<String> {
+pub fn quick_vendor_label<Dev: Device>(device: &Dev) -> Option<String> {
     let address = device.address();
     if let Some(vendor) = bluetooth_driver::oui::vendor(&address) {
         return Some(vendor.to_owned());
@@ -141,7 +146,7 @@ pub fn quick_vendor_label(device: &BluezDevice) -> Option<String> {
 }
 
 impl VendorAttribution {
-    pub async fn compute(device: &BluezDevice) -> Self {
+    pub async fn compute<Dev: Device>(device: &Dev) -> Self {
         let address = device.address();
 
         let oui = bluetooth_driver::oui::vendor(&address).map(str::to_owned);
@@ -207,11 +212,11 @@ impl VendorAttribution {
     }
 }
 
-pub struct App {
-    pub driver: BluezDriver,
-    pub adapters: Vec<BluezAdapter>,
+pub struct App<D: BluetoothDriver> {
+    pub driver: D,
+    pub adapters: Vec<D::Adapter>,
     pub adapter_idx: usize,
-    pub devices: Vec<BluezDevice>,
+    pub devices: Vec<DeviceOf<D>>,
     pub device_filter: DeviceFilter,
     /// Which device is selected, tracked by address rather than position.
     /// `visible_device_indices()` re-sorts by RSSI on every call, and
@@ -258,8 +263,8 @@ pub struct FullDeviceInfo {
     pub pnp_id: Option<PnpId>,
 }
 
-impl App {
-    pub async fn new(driver: BluezDriver) -> Result<Self, DriverError> {
+impl<D: BluetoothDriver> App<D> {
+    pub async fn new(driver: D) -> Result<Self, DriverError> {
         let adapters = driver.adapters().await?;
         let devices = if let Some(adapter) = adapters.first() {
             adapter.devices().await?
@@ -307,7 +312,7 @@ impl App {
         Ok(app)
     }
 
-    pub fn current_adapter(&self) -> Option<&BluezAdapter> {
+    pub fn current_adapter(&self) -> Option<&D::Adapter> {
         self.adapters.get(self.adapter_idx)
     }
 
@@ -316,7 +321,7 @@ impl App {
             .devices
             .iter()
             .enumerate()
-            .filter(|(_, d)| self.device_filter.matches(d))
+            .filter(|(_, d)| self.device_filter.matches(*d))
             .map(|(i, _)| i)
             .collect();
         indices.sort_by_key(|&i| {
@@ -334,12 +339,12 @@ impl App {
             .position(|&i| self.devices[i].address() == address)
     }
 
-    pub fn selected_device(&self) -> Option<&BluezDevice> {
+    pub fn selected_device(&self) -> Option<&DeviceOf<D>> {
         let address = self.selected_address.clone()?;
         self.devices.iter().find(|d| d.address() == address)
     }
 
-    fn selected_device_mut(&mut self) -> Option<&mut BluezDevice> {
+    fn selected_device_mut(&mut self) -> Option<&mut DeviceOf<D>> {
         let address = self.selected_address.clone()?;
         self.devices.iter_mut().find(|d| d.address() == address)
     }
@@ -576,8 +581,7 @@ impl App {
         }
     }
 
-    pub async fn handle_key(&mut self, key: crossterm::event::KeyCode) {
-        use crossterm::event::KeyCode;
+    pub async fn handle_key(&mut self, key: Key) {
 
         if self.overlay != Overlay::None {
             self.handle_overlay_key(key).await;
@@ -585,19 +589,19 @@ impl App {
         }
 
         match key {
-            KeyCode::Char('q') => self.should_quit = true,
-            KeyCode::Char('?') => self.overlay = Overlay::Help,
-            KeyCode::Char(':') => {
+            Key::Char('q') => self.should_quit = true,
+            Key::Char('?') => self.overlay = Overlay::Help,
+            Key::Char(':') => {
                 self.overlay = Overlay::Palette;
                 self.palette_buffer.clear();
             }
-            KeyCode::Char('e') => {
+            Key::Char('e') => {
                 self.screen = Screen::EventLog;
                 self.unseen_events = 0;
             }
-            KeyCode::Char('A') => self.screen = Screen::AdapterControl,
-            KeyCode::Char('s') => self.toggle_scan().await,
-            KeyCode::Esc => {
+            Key::Char('A') => self.screen = Screen::AdapterControl,
+            Key::Char('s') => self.toggle_scan().await,
+            Key::Esc => {
                 if self.fullscreen_detail {
                     self.fullscreen_detail = false;
                 } else {
@@ -612,71 +616,68 @@ impl App {
         }
     }
 
-    async fn handle_shell_key(&mut self, key: crossterm::event::KeyCode) {
-        use crossterm::event::KeyCode;
+    async fn handle_shell_key(&mut self, key: Key) {
         match key {
-            KeyCode::Up => self.move_selection(-1),
-            KeyCode::Down => self.move_selection(1),
-            KeyCode::Right => self.drill_in(),
-            KeyCode::Left => self.drill_out(),
-            KeyCode::Tab => self.cycle_focus(),
-            KeyCode::Char('f') => self.fullscreen_detail = !self.fullscreen_detail,
-            KeyCode::Char('/') => {
+            Key::Up => self.move_selection(-1),
+            Key::Down => self.move_selection(1),
+            Key::Right => self.drill_in(),
+            Key::Left => self.drill_out(),
+            Key::Tab => self.cycle_focus(),
+            Key::Char('f') => self.fullscreen_detail = !self.fullscreen_detail,
+            Key::Char('/') => {
                 self.device_filter = self.device_filter.next();
                 self.normalize_selection();
             }
-            KeyCode::Char('v') => self.open_vendor_modal().await,
-            KeyCode::Char('a') => self.begin_alias_edit(),
-            KeyCode::Char('r') => self.refresh_devices().await,
-            KeyCode::Enter => self.toggle_connection().await,
-            KeyCode::Char('p') => self.pair_selected().await,
-            KeyCode::Char('t') => self.set_trusted_selected(true).await,
-            KeyCode::Char('T') => self.set_trusted_selected(false).await,
-            KeyCode::Char('b') => self.set_blocked_selected(true).await,
-            KeyCode::Char('B') => self.set_blocked_selected(false).await,
-            KeyCode::Char('F') => self.overlay = Overlay::ConfirmForget,
+            Key::Char('v') => self.open_vendor_modal().await,
+            Key::Char('a') => self.begin_alias_edit(),
+            Key::Char('r') => self.refresh_devices().await,
+            Key::Enter => self.toggle_connection().await,
+            Key::Char('p') => self.pair_selected().await,
+            Key::Char('t') => self.set_trusted_selected(true).await,
+            Key::Char('T') => self.set_trusted_selected(false).await,
+            Key::Char('b') => self.set_blocked_selected(true).await,
+            Key::Char('B') => self.set_blocked_selected(false).await,
+            Key::Char('F') => self.overlay = Overlay::ConfirmForget,
             _ => {}
         }
     }
 
-    async fn handle_discovery_key(&mut self, key: crossterm::event::KeyCode) {
-        use crossterm::event::KeyCode;
+    async fn handle_discovery_key(&mut self, key: Key) {
         match key {
-            KeyCode::Up => self.move_selection(-1),
-            KeyCode::Down => self.move_selection(1),
-            KeyCode::Char('p') => self.pair_selected().await,
-            KeyCode::Char('c') => self.toggle_connection().await,
-            KeyCode::Char('v') => self.open_vendor_modal().await,
+            Key::Up => self.move_selection(-1),
+            Key::Down => self.move_selection(1),
+            Key::Char('p') => self.pair_selected().await,
+            Key::Char('c') => self.toggle_connection().await,
+            Key::Char('v') => self.open_vendor_modal().await,
             _ => {}
         }
     }
 
-    async fn handle_adapter_control_key(&mut self, key: crossterm::event::KeyCode) {
-        use crossterm::event::KeyCode;
+    async fn handle_adapter_control_key(&mut self, key: Key) {
         let Some(adapter) = self.adapters.get_mut(self.adapter_idx) else {
             return;
         };
         match key {
-            KeyCode::Char('o') => {
+            Key::Char('o') => {
                 let target = !adapter.is_powered();
                 if let Err(e) = adapter.set_powered(target).await {
                     self.set_status_err("POWER TOGGLE FAILED", &e);
                 }
             }
-            KeyCode::Char('d') => {
+            Key::Char('d') => {
                 let target = !adapter.is_discoverable();
                 if let Err(e) = adapter.set_discoverable(target).await {
                     self.set_status_err("SET DISCOVERABLE FAILED", &e);
                 }
             }
-            KeyCode::Char('k') => {
+            Key::Char('k') => {
                 let target = !adapter.is_pairable();
                 if let Err(e) = adapter.set_pairable(target).await {
                     self.set_status_err("SET PAIRABLE FAILED", &e);
                 }
             }
-            KeyCode::Char('s') => self.toggle_scan().await,
-            KeyCode::Char('r') => {
+            Key::Char('s') => self.toggle_scan().await,
+            Key::Char('r') => {
                 if let Err(e) = adapter.refresh().await {
                     self.set_status_err("REFRESH FAILED", &e);
                 }
@@ -685,32 +686,31 @@ impl App {
         }
     }
 
-    fn handle_event_log_key(&mut self, key: crossterm::event::KeyCode) {
+    fn handle_event_log_key(&mut self, key: Key) {
         // Scrolling is handled directly by the events screen renderer via
         // a persisted offset; nothing state-changing to do here yet
         // beyond what the top-level dispatcher already covers.
         let _ = key;
     }
 
-    async fn handle_overlay_key(&mut self, key: crossterm::event::KeyCode) {
-        use crossterm::event::KeyCode;
+    async fn handle_overlay_key(&mut self, key: Key) {
         match self.overlay {
             Overlay::AliasEdit => match key {
-                KeyCode::Enter => self.commit_alias_edit().await,
-                KeyCode::Esc => self.overlay = Overlay::None,
-                KeyCode::Backspace => {
+                Key::Enter => self.commit_alias_edit().await,
+                Key::Esc => self.overlay = Overlay::None,
+                Key::Backspace => {
                     self.alias_buffer.pop();
                 }
-                KeyCode::Char(c) => self.alias_buffer.push(c),
+                Key::Char(c) => self.alias_buffer.push(c),
                 _ => {}
             },
             Overlay::Palette => match key {
-                KeyCode::Esc => self.overlay = Overlay::None,
-                KeyCode::Backspace => {
+                Key::Esc => self.overlay = Overlay::None,
+                Key::Backspace => {
                     self.palette_buffer.pop();
                 }
-                KeyCode::Char(c) => self.palette_buffer.push(c),
-                KeyCode::Enter => {
+                Key::Char(c) => self.palette_buffer.push(c),
+                Key::Enter => {
                     let cmd = PaletteCommand::filtered(&self.palette_buffer)
                         .first()
                         .map(|entry| entry.0);
@@ -722,11 +722,11 @@ impl App {
                 _ => {}
             },
             Overlay::ConfirmForget => match key {
-                KeyCode::Char('y') | KeyCode::Char('Y') => self.forget_selected().await,
+                Key::Char('y') | Key::Char('Y') => self.forget_selected().await,
                 _ => self.overlay = Overlay::None,
             },
             Overlay::Vendor | Overlay::Help | Overlay::None => match key {
-                KeyCode::Esc | KeyCode::Char('v') | KeyCode::Char('?') => {
+                Key::Esc | Key::Char('v') | Key::Char('?') => {
                     self.overlay = Overlay::None;
                 }
                 _ => {}
@@ -981,14 +981,23 @@ impl PaletteCommand {
 /// Races a background driver call against [`BACKGROUND_CALL_TIMEOUT`],
 /// on top of (well inside) the driver's own connection-level timeout.
 /// Dropping the losing future on timeout is safe: it's just an
-/// in-progress D-Bus reply read, and zbus discards the reply if one
-/// eventually arrives for a call nobody's waiting on anymore.
+/// in-progress reply read, discarded if one eventually arrives for a
+/// call nobody's waiting on anymore.
+///
+/// Built on `futures-timer`/`futures-util::select` rather than
+/// `tokio::time::timeout`: this crate is shared with a wasm32 frontend
+/// that has no tokio runtime at all, and both of those crates work
+/// unmodified on native and wasm32 alike.
 async fn background_timeout<T>(
     fut: impl Future<Output = Result<T, DriverError>>,
 ) -> Result<T, DriverError> {
-    tokio::time::timeout(BACKGROUND_CALL_TIMEOUT, fut)
-        .await
-        .unwrap_or(Err(DriverError::Timeout))
+    let timer = futures_timer::Delay::new(BACKGROUND_CALL_TIMEOUT);
+    futures_util::pin_mut!(fut);
+    futures_util::pin_mut!(timer);
+    match futures_util::future::select(fut, timer).await {
+        futures_util::future::Either::Left((result, _)) => result,
+        futures_util::future::Either::Right(_) => Err(DriverError::Timeout),
+    }
 }
 
 fn wrap_index(current: usize, delta: i32, len: usize) -> usize {
