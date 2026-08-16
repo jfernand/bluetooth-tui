@@ -1,0 +1,35 @@
+[package]
+name = "bluetooth-tui-web"
+version = "0.1.0"
+edition = "2024"
+
+# Deliberately not a member of the parent workspace - see the note in
+# the root Cargo.toml. Only ever builds for wasm32-unknown-unknown.
+[workspace]
+
+[dependencies]
+anyhow = "1.0.104"
+bluetooth-driver = { path = "../bluetooth-driver" }
+bluetooth-driver-web = { path = "../bluetooth-driver-web" }
+bluetooth-tui-core = { path = "../bluetooth-tui-core" }
+console_error_panic_hook = "0.1"
+futures-channel = "0.3.34"
+futures-timer = "3.0"
+futures-util = "0.3.34"
+ratzilla = "0.3.1"
+wasm-bindgen-futures = "0.4"
+
+[dependencies.web-sys]
+version = "0.3"
+features = ["console"]
+
+# Two small local patches, both fixing ratzilla 0.3.1's WebGl2Backend
+# code (which bluetooth-tui-web never uses - only DomBackend) against
+# API drift in current web-sys (0.3.8x+); neither is fixed upstream as
+# of writing (checked git HEAD for beamterm-renderer, same bug). Both
+# vendor/ trees are the small published crate sources, unmodified
+# apart from the specific patched lines - see each crate's own
+# comments at the patch site for exactly what changed and why.
+[patch.crates-io]
+beamterm-renderer = { path = "vendor/beamterm-renderer" }
+ratzilla = { path = "vendor/ratzilla" }

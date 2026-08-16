@@ -7,4 +7,14 @@ edition = "2024"
 bluetooth-driver = { path = "../bluetooth-driver" }
 futures-timer = "3.0"
 futures-util = "0.3.34"
-ratatui = "0.30.2"
+
+# default-features = false, dropping just "crossterm" from ratatui's
+# own defaults: this crate is shared with a wasm32 frontend (see
+# key.rs's doc comment), and ratatui's "crossterm" feature pulls in the
+# crossterm crate, which doesn't compile on wasm32 at all. The native
+# frontend still gets it - its own Cargo.toml requests defaults, and
+# Cargo unifies features across that build's dependency graph.
+[dependencies.ratatui]
+version = "0.30.2"
+default-features = false
+features = ["all-widgets", "layout-cache", "macros", "underline-color", "std"]

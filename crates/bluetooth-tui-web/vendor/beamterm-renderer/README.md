@@ -1,0 +1,526 @@
+## beamterm - A GPU-Accelerated Terminal Renderer
+
+[![Crate Badge]][Crate] [![NPM Badge]][NPM] [![API Badge]][API] [![Core API Badge]][Core API] [![Deps.rs
+Badge]][Deps.rs] [![DeepWiki Badge]][DeepWiki]
+
+A high-performance terminal rendering library targeting sub-millisecond render times, supporting
+both **WebGL2** and **OpenGL 3.3** from a single Rust codebase. **beamterm** is a terminal renderer,
+not a full terminal emulator - it handles the display layer while you provide the terminal logic
+(see the [terminal emulator example](examples/terminal-emulator/) for a demo of a working terminal
+that [outperforms](examples/terminal-emulator/README.md#benchmarks) several established emulators
+in rendering throughput). It also powers [Ratzilla][rz]'s WebGL2 backend.
+
+[![terminal emulator](examples/terminal-emulator/screenshots/beamterm-terminal-emulator-2.png)](examples/terminal-emulator/)
+*The included [terminal emulator example](examples/terminal-emulator/) running with a dynamic font atlas (Hack + Noto Color Emoji).*
+
+### [Live Demos][demos]
+
+Check out [**interactive examples**][demos] showcasing both pure WASM applications and JavaScript/TypeScript
+integrations.
+
+## Key Features
+
+- **Cross-Platform GL** - Single rendering core targeting WebGL2 (WASM) and OpenGL 3.3 (native) via glow
+- **Single Draw Call** - Renders entire terminal (e.g., 200×80 cells) in one instanced draw
+- **Flexible Font Atlases** - Static pre-generated atlases or dynamic on-demand rasterization with LRU caching
+- **Unicode and Emoji Support** - Complete Unicode support with grapheme clustering
+- **Selection Support** _(WASM)_ - Mouse-driven text selection with clipboard integration (Block/Linear modes)
+- **Optional JS/TS Bindings** _(WASM)_ - Provides a [JavaScript/TypeScript API](js/README.md) for easy integration
+
+## Performance
+
+beamterm targets sub-millisecond render times across a wide range of hardware. The following
+measurements were taken in Chrome (WebGL2/WASM):
+
+| Metric                          | Target (Low-end) | Achieved (2019 hardware) |
+| ------------------------------- | ---------------- | ------------------------ |
+| Render Time†                    | <1ms @ 16k cells | <1ms @ 45k cells         |
+| Draw Calls                      | 1 per frame      | 1 per frame              |
+| Memory Usage                    | ~8.9MB           | ~8.9MB                   |
+| Update Bandwidth (full refresh) | ~8 MB/s @ 60 FPS | ~22 MB/s @ 60 FPS        |
+
+[![waves](images/ratzilla_canvas_waves_426x106_s.png)](https://junkdog.github.io/beamterm/canvas_waves/?atlas_size=10)
+
+The screenshot shows [Ratzilla's][rz] "canvas waves" demo running in a 426×106 terminal (45,156 cells),
+maintaining sub-millisecond render times on 2019-era hardware (i9-9900K / RTX 2070).
+
+† _Includes Ratatui buffer translation, GPU buffer uploads, and draw call execution._
+
+## Quick Start (Native OpenGL 3.3)
+
+Use **`beamterm-core`** for native desktop applications - no browser or WASM dependencies involved.
+For runtime font selection, enable the `native-dynamic-atlas` feature to rasterize system fonts
+on demand (see [Atlas Usage: Native](#atlas-usage-native-opengl-33)).
+
+```rust
+use beamterm_core::{
+    CellData, FontAtlasData, FontStyle, GlState, GlslVersion,
+    GlyphEffect, StaticFontAtlas, TerminalGrid,
+};
+
+// 1. Load a font atlas (default embeds Hack Regular)
+let atlas_data = FontAtlasData::default();
+let atlas = StaticFontAtlas::load(&gl, atlas_data)?;
+
+// 2. Create the terminal grid
+let mut grid = TerminalGrid::new(
+    &gl,
+    atlas.into(),
+    (width, height),       // viewport size in physical pixels
+    pixel_ratio,           // e.g. window.scale_factor() as f32
+    &GlslVersion::Gl330,
+)?;
+
+// 3. Update cells and upload to GPU
+let cells = vec![
+    CellData::new("H", FontStyle::Bold, GlyphEffect::None, 0x50fa7b, 0x282a36),
+    CellData::new("i", FontStyle::Normal, GlyphEffect::Underline, 0xf8f8f2, 0x282a36),
+];
+grid.update_cells(cells.into_iter())?;
+grid.flush_cells(&gl)?;
+
+// 4. Render
+let mut gl_state = GlState::new(&gl);
+grid.render(&gl, &mut gl_state)?;
+```
+
+See [`examples/native-terminal/`](examples/native-terminal/) for a complete glutin + winit
+application, [`examples/terminal-emulator/`](examples/terminal-emulator/) for a working terminal
+emulator with PTY support, and [`examples/game-console/`](examples/game-console/) for compositing
+a terminal overlay on top of 3D content.
+
+### Rendering Lifecycle
+
+`TerminalGrid` implements the `Drawable` trait, which defines a three-phase rendering protocol:
+
+1. **`prepare()`** - Binds shaders, textures, VAO, and UBOs; uploads any pending atlas changes.
+2. **`draw()`** - Issues the instanced draw call.
+3. **`cleanup()`** - Unbinds resources and restores GL state.
+
+This separation lets you composite the terminal with other GL content - render your scene first,
+then call `prepare`/`draw`/`cleanup` on the grid as an overlay (see the `game-console` example).
+
+### Cell Data Structure
+
+Each terminal cell requires:
+
+- **symbol**: Character or grapheme to display (`&str`)
+- **style**: `FontStyle` enum (Normal, Bold, Italic, BoldItalic)
+- **effect**: `GlyphEffect` enum (None, Underline, Strikethrough)
+- **fg/bg**: Colors as 24-bit RGB values (`0xRRGGBB`)
+
+```rust
+CellData::new("A", FontStyle::BoldItalic, GlyphEffect::Underline, 0xff79c6, 0x282a36)
+```
+
+Colors use `0xRRGGBB` format (the alpha byte is ignored per-cell). To set global background
+transparency, use `grid.set_bg_alpha(&gl, 0.75)` - useful for overlay effects.
+
+### Resize and HiDPI
+
+When the window resizes or moves between displays, recalculate the grid layout:
+
+```rust
+grid.resize(&gl, (new_width, new_height), pixel_ratio)?;
+let (cols, rows) = grid.terminal_size();  // updated grid dimensions
+```
+
+Static atlases use snapped scaling (0.5x, 1x, 2x, 3x...) to preserve pre-rasterized glyph
+sharpness. See [Font Atlas Types](#font-atlas-types) for details on HiDPI handling per atlas type.
+
+## Quick Start (WASM / Browser)
+
+Use **`beamterm-renderer`** for browser targets - wraps beamterm-core with a high-level builder
+API, dynamic font atlas support, mouse selection, and clipboard integration.
+
+```rust
+use beamterm_renderer::{Terminal, CellData, FontStyle, GlyphEffect};
+
+// Create terminal with default font atlas
+let mut terminal = Terminal::builder("#canvas").build()?;
+
+// Update cells and render
+let cells: Vec<CellData> = ...;
+terminal.update_cells(cells.into_iter())?;
+terminal.render_frame()?;
+
+// Handle resize
+terminal.resize(new_width, new_height)?;
+```
+
+### Selection and Mouse Input
+
+The renderer supports mouse-driven text selection with automatic clipboard integration:
+
+```rust
+// Enable selection handler with options
+let terminal = Terminal::builder("#canvas")
+    .mouse_selection_handler(
+        MouseSelectOptions::new()
+            .selection_mode(SelectionMode::Linear)
+            .trim_trailing_whitespace(true),
+    )
+    .build()?;
+
+// Or implement custom mouse handling
+let terminal = Terminal::builder("#canvas")
+    .mouse_input_handler(|event, grid| {
+        // Custom handler logic
+    })
+    .build()?;
+```
+
+## Font Atlas Types
+
+beamterm supports two kinds of font atlases:
+
+| Aspect            | Static Atlas                           | Dynamic Atlas                                   |
+| ----------------- | -------------------------------------- | ----------------------------------------------- |
+| **Font source**   | Pre-generated `.atlas` file            | Any system or web font                          |
+| **Glyph lookup**  | ASCII: direct cast; non-ASCII: HashMap | ASCII Normal: direct cast; others: LRU cache    |
+| **Rasterization** | Build-time (via `beamterm-atlas` CLI)  | On-demand via Canvas API (WASM) or swash+fontdb |
+| **Capacity**      | 1024 glyphs × 4 styles + 2048 emoji    | 2048 normal + 2048 wide; LRU evicts inactive    |
+| **HiDPI scaling** | Snapped (0.5×, 1×, 2×, 3×...)          | Re-rasterizes at exact DPR                      |
+
+**Static Atlas** is the default. All glyphs are pre-rasterized and immediately available. ASCII
+characters (0-127) use direct bit manipulation (`char_code | style_bits`) for zero-overhead glyph
+lookup; non-ASCII characters fall back to a HashMap. Because glyphs are fixed at build time, HiDPI
+scaling uses discrete steps to preserve sharpness.
+
+**Dynamic Atlas** rasterizes glyphs on first use, supporting both WASM (browser Canvas API) and native
+(swash+fontdb) backends via the `GlyphRasterizer` trait. ASCII characters in Normal style bypass the
+cache; styled ASCII and all non-ASCII characters go through an LRU cache. When slots fill up,
+least-recently-used glyphs are evicted and re-rasterized on next access. Glyphs are re-rasterized at
+the new resolution whenever the device pixel ratio changes.
+
+### Atlas Usage: WASM
+
+```rust
+// Static atlas (default, or with custom atlas)
+let terminal = Terminal::builder("#canvas").build()?;
+let terminal = Terminal::builder("#canvas")
+    .font_atlas(FontAtlasData::from_binary(include_bytes!("custom.atlas"))?)
+    .build()?;
+
+// Dynamic atlas (WASM)
+let terminal = Terminal::builder("#canvas")
+    .dynamic_font_atlas(&["JetBrains Mono", "Fira Code"], 16.0)
+    .build()?;
+
+// Switch atlas at runtime (WASM)
+terminal.replace_with_dynamic_atlas(&["Hack", "Fira Code"], 14.0)?;
+terminal.replace_with_static_atlas(new_atlas_data)?;
+```
+
+### Atlas Usage: Native OpenGL 3.3
+
+Native dynamic atlas usage (requires `native-dynamic-atlas` feature on beamterm-core):
+
+```rust
+use beamterm_core::{NativeGlyphRasterizer, gl::DynamicFontAtlas};
+
+let effective_font_size = 16.0 * pixel_ratio;
+let rasterizer = NativeGlyphRasterizer::new(
+    &["Hack Nerd Font Mono", "Hack", "Noto Color Emoji"],
+    effective_font_size,
+)?;
+let atlas = DynamicFontAtlas::new(&gl, rasterizer, 16.0, pixel_ratio)?;
+let mut grid = TerminalGrid::new(&gl, atlas.into(), size, pixel_ratio, &GlslVersion::Gl330)?;
+```
+
+## System Architecture
+
+For a comprehensive overview of the codebase, see the [DeepWiki][DeepWiki].
+
+[View architecture diagram](docs/architecture.png)
+
+beamterm is organized into six crates. Most users only need one:
+
+| Crate                     | Use when...                                            |
+| ------------------------- | ------------------------------------------------------ |
+| **[`beamterm-core`]**     | Building a **native** desktop application (OpenGL 3.3) |
+| **[`beamterm-renderer`]** | Building for the **browser** (WebGL2 / WASM)           |
+
+The remaining crates are internal or optional:
+
+| Crate                 | Purpose                                                        |
+| --------------------- | -------------------------------------------------------------- |
+| `beamterm-data`       | Shared data structures and binary atlas format                 |
+| `beamterm-atlas`      | CLI tool for generating static font atlases from TTF/OTF files |
+| `beamterm-rasterizer` | Native font rasterization (swash + fontdb) for dynamic atlases |
+| `beamterm-unicode`    | Shared emoji detection and character width utilities           |
+
+[`beamterm-core`]: https://docs.rs/beamterm-core
+[`beamterm-renderer`]: https://docs.rs/beamterm-renderer
+
+The architecture leverages GPU instancing to render the entire terminal in a single draw call.
+Per-instance data provides position, glyph, and color information for each cell. All rendering
+state is encapsulated in a single VAO, and a 2D texture array packs glyphs for cache-efficient
+access.
+
+## Internals
+
+### Texture Array Layout
+
+Both atlas types use a GL 2D texture array where each layer contains a 1×32 grid of glyphs.
+
+### Static Atlas: Style-Encoded Glyph IDs
+
+[View default atlas layout (Hack)](beamterm-data/atlas/bitmap_font.png)
+
+The static atlas uses 16-bit glyph IDs with style information encoded directly in the ID.
+This allows the GPU to compute texture coordinates from the ID alone.
+
+| Layer Range | Style          | Glyph ID Range | Total Layers |
+| ----------- | -------------- | -------------- | ------------ |
+| 0-31        | Normal         | 0x0000-0x03FF  | 32           |
+| 32-63       | Bold           | 0x0400-0x07FF  | 32           |
+| 64-95       | Italic         | 0x0800-0x0BFF  | 32           |
+| 96-127      | Bold+Italic    | 0x0C00-0x0FFF  | 32           |
+| 128-255     | Emoji (2-wide) | 0x1000-0x1FFF  | 128          |
+
+Each font style reserves exactly 32 layers (1024 glyph slots), creating gaps if fewer glyphs are used.
+Emoji layers start at layer 128, regardless of how many base glyphs are actually defined.
+
+**Texture lookup mask:** `0x1FFF` (13 bits) - includes style bits for layer calculation.
+
+#### Glyph ID Encoding (Static Atlas)
+
+The glyph ID is a 16-bit value that efficiently packs both the base glyph identifier
+and style information (such as weight, style flags, etc.) into a single value. This
+packed representation is passed directly to the GPU.
+
+#### Glyph ID Bit Layout (16-bit)
+
+| Bit(s) | Flag Name     | Hex Mask | Binary Mask           | Description              |
+| ------ | ------------- | -------- | --------------------- | ------------------------ |
+| 0-9    | GLYPH_ID      | `0x03FF` | `0000_0011_1111_1111` | Base glyph identifier    |
+| 10     | BOLD          | `0x0400` | `0000_0100_0000_0000` | Bold font style\*        |
+| 11     | ITALIC        | `0x0800` | `0000_1000_0000_0000` | Italic font style\*      |
+| 12     | EMOJI         | `0x1000` | `0001_0000_0000_0000` | Emoji character flag     |
+| 13     | UNDERLINE     | `0x2000` | `0010_0000_0000_0000` | Underline effect         |
+| 14     | STRIKETHROUGH | `0x4000` | `0100_0000_0000_0000` | Strikethrough effect     |
+| 15     | EMOJI (dyn)   | `0x8000` | `1000_0000_0000_0000` | Dynamic atlas emoji flag |
+
+\*When the EMOJI flag (bit 12) is set, bits 10-11 are **not** used for bold/italic styling (emoji
+render in a single style). Instead, these bits contribute to the layer offset calculation, expanding
+the addressable emoji range to 4096 glyph slots (128 layers × 32 glyphs/layer).
+
+**Note:** For layer coordinate calculation, only bits 0-12 are used (mask `0x1FFF`). The UNDERLINE and
+STRIKETHROUGH flags (bits 13-14) are purely rendering effects and don't affect texture atlas positioning.
+
+#### ID to 2D Array Position Examples
+
+| Character | Style       | Glyph ID | Calculation            | Result                |
+| --------- | ----------- | -------- | ---------------------- | --------------------- |
+| ' ' (32)  | Normal      | 0x0020   | 32÷32=1, 32%32=0       | Layer 1, Position 0   |
+| 'A' (65)  | Normal      | 0x0041   | 65÷32=2, 65%32=1       | Layer 2, Position 1   |
+| 'A' (65)  | Bold+Italic | 0x0C41   | 3137÷32=98, 3137%32=1  | Layer 98, Position 1  |
+| '€'       | Normal      | 0x0080   | Mapped to ID 128       | Layer 4, Position 0   |
+| '中' (L)  | Normal      | 0x014A   | 330÷32=10, 330%32=10   | Layer 10, Position 10 |
+| '中' (R)  | Normal      | 0x014B   | 331÷32=10, 331%32=11   | Layer 10, Position 11 |
+| '🚀' (L)  | Emoji       | 0x1000   | 4096÷32=128, 4096%32=0 | Layer 128, Position 0 |
+| '🚀' (R)  | Emoji       | 0x1001   | 4097÷32=128, 4097%32=1 | Layer 128, Position 1 |
+
+The consistent modular arithmetic ensures that style variants maintain the same vertical position
+within their respective layers, improving texture cache coherence. Double-width glyphs (both fullwidth
+characters and emoji) are rendered into two consecutive glyph slots (left and right halves), each
+occupying one cell position in the atlas.
+
+#### Double-Width Glyphs
+
+Both emoji and fullwidth characters (e.g., CJK ideographs) occupy two consecutive terminal cells.
+The atlas stores these as left/right half-pairs with consecutive glyph IDs:
+
+- **Fullwidth glyphs** are assigned IDs after all halfwidth glyphs, aligned to even boundaries
+  for efficient texture packing. The renderer distinguishes them via `halfwidth_glyphs_per_layer`.
+- **Emoji glyphs** use the EMOJI flag (bit 12) and occupy the 0x1000-0x1FFF ID range.
+
+Both types are rasterized at 2× cell width, then split into left (even ID) and right (odd ID) halves.
+
+### Dynamic Atlas: Flat Slot Addressing
+
+The dynamic atlas uses a simpler flat addressing scheme with 13-bit slot IDs. Font styles are
+tracked separately in a cache rather than encoded in the slot ID. The emoji flag is stored in
+bit 15 (outside the slot mask), unlike the static atlas where bit 12 is part of the slot address.
+
+| Slot Range | Purpose                   | Capacity                   |
+| ---------- | ------------------------- | -------------------------- |
+| 0-94       | ASCII (Normal style only) | 95 pre-allocated slots     |
+| 95-2047    | Normal glyphs (any style) | 1953 LRU-managed slots     |
+| 2048-6143  | Wide glyphs (emoji, CJK)  | 2048 glyphs × 2 slots each |
+
+**Key differences from static atlas:**
+
+- **No style encoding in ID**: 'A' _italic_ and 'A' _bold_ occupy separate slots rather than computed IDs (0x0041 vs 0x0441)
+- **LRU eviction**: When a region fills up, least-recently-used glyphs are evicted and re-rasterized on next access
+- **On-demand rasterization**: Glyphs are rendered via `OffscreenCanvas` (WASM) or swash+fontdb (native) when first encountered
+- **Texture lookup mask:** `0x1FFF` (13 bits) - same as static atlas; emoji flag at bit 15 instead of bit 12
+
+**Slot to texture coordinate:**
+
+```
+layer = slot / 32
+position = slot % 32
+```
+
+ASCII characters (0x20-0x7E) in _normal_ style are pre-loaded at startup and occupy fixed slots 0-94, requiring
+no HashMap lookup for mapping. All other characters and styles are dynamically managed.
+
+## GPU Buffer Architecture
+
+[View buffer architecture diagram](docs/buffer_architecture.png)
+
+The renderer uses six buffers managed through a Vertex Array Object (VAO) to achieve
+single-draw-call rendering. Each buffer serves a specific purpose in the instanced
+rendering pipeline, with careful attention to memory alignment and update patterns.
+
+### Buffer Layout Summary
+
+| Buffer                | Type | Size         | Usage          | Update Freq | Purpose           |
+| --------------------- | ---- | ------------ | -------------- | ----------- | ----------------- |
+| **Vertex**            | VBO  | 64 bytes     | `STATIC_DRAW`  | Never       | Quad geometry     |
+| **Index**             | IBO  | 6 bytes      | `STATIC_DRAW`  | Never       | Triangle indices  |
+| **Instance Position** | VBO  | 4 bytes/cell | `STATIC_DRAW`  | On resize   | Grid coordinates  |
+| **Instance Cell**     | VBO  | 8 bytes/cell | `DYNAMIC_DRAW` | Per frame   | Glyph ID + colors |
+| **Vertex UBO**        | UBO  | 80 bytes     | `STATIC_DRAW`  | On resize   | Projection matrix |
+| **Fragment UBO**      | UBO  | 32 bytes     | `STATIC_DRAW`  | On resize   | Cell metadata     |
+
+All vertex buffers are encapsulated within a single Vertex Array Object (VAO), enabling state-free
+rendering with a single draw call.
+
+The **Instance Position** and **Instance Cell** buffers are recreated when the terminal size changes.
+
+#### Dirty Range Tracking
+
+The _Instance Cell_ buffer uses chunked dirty tracking to minimize GPU upload bandwidth. A `u64`
+bitmask tracks which 1024-cell chunks have been modified since the last frame. On flush, adjacent
+dirty chunks are merged into contiguous `bufferSubData` uploads.
+
+### Vertex Attribute Bindings
+
+| Location | Attribute   | Type    | Components       | Divisor | Source Buffer     |
+| -------- | ----------- | ------- | ---------------- | ------- | ----------------- |
+| 0        | Position    | `vec2`  | x, y             | 0       | Vertex            |
+| 1        | TexCoord    | `vec2`  | u, v             | 0       | Vertex            |
+| 2        | InstancePos | `uvec2` | grid_x, grid_y   | 1       | Instance Position |
+| 3        | PackedData  | `uvec2` | glyph_id, colors | 1       | Instance Cell     |
+
+### Instance Data Packing
+
+The 8-byte `CellDynamic` structure is tightly packed to minimize bandwidth:
+
+```
+Byte Layout: [0][1][2][3][4][5][6][7]
+              └┬─┘  └──┬──┘  └──┬──┘
+           Glyph ID  FG RGB   BG RGB
+           (16-bit) (24-bit) (24-bit)
+```
+
+This layout enables the GPU to fetch all cell data in a single 64-bit read, with the glyph
+ID encoding both the texture coordinate and style information as described in the [Glyph ID Bit
+Layout](#glyph-id-bit-layout-16-bit) section.
+
+The 1×32 grid layout ensures that adjacent terminal cells often access the same texture layer,
+maximizing GPU cache hits. ASCII characters (the most common) are packed into the first 4 layers,
+providing optimal memory locality for typical terminal content.
+
+### Shader Pipeline
+
+The renderer uses a branchless shader pipeline optimized for instanced rendering:
+
+#### Vertex Shader (`cell.vert`)
+
+Transforms cell geometry from grid space to screen space using per-instance attributes. The shader:
+
+- Calculates cell position by multiplying grid coordinates with cell size
+- Applies orthographic projection for pixel-perfect rendering
+- Extracts glyph ID and RGB colors from packed instance data
+- Passes pre-extracted colors as `flat` varyings to fragment shader
+
+Color extraction is performed in the vertex shader rather than the fragment shader to work around
+ANGLE bugs affecting uint bit operations on certain GPU drivers (AMD, Qualcomm).
+
+#### Fragment Shader (`cell.frag`)
+
+Performs the core rendering logic with efficient 2D array texture lookups:
+
+- Uses pre-extracted glyph ID and colors from vertex shader
+- Masks glyph ID with `0x1FFF` (13 bits, same for both atlas types) to compute layer index
+- Computes layer index and vertical position using bit operations
+- Samples from 2D texture array using direct layer indexing
+- Detects emoji glyphs via configurable `u_emoji_bit` uniform (bit 12 for static, bit 15 for dynamic)
+- Applies underline/strikethrough effects via bits 13-14
+- Blends foreground/background colors with glyph alpha for anti-aliasing
+
+### OpenGL Feature Dependencies
+
+The renderer requires OpenGL 3.3+ / WebGL2 for:
+
+- **2D Texture Arrays** (`TEXTURE_2D_ARRAY`, `texStorage3D`, `texSubImage3D`)
+- **Instanced Rendering** (`drawElementsInstanced`, `vertexAttribDivisor`)
+- **Advanced Buffers** (`UNIFORM_BUFFER`, `vertexAttribIPointer`)
+- **Vertex Array Objects** (`createVertexArray`)
+
+## Build and Deployment
+
+### Development Setup (Native)
+
+```toml
+[dependencies]
+beamterm-core = "0.15"
+glow = "0.16"
+```
+
+Any crate that provides a `glow::Context` works - glutin, sdl2, glfw, etc.
+
+### Development Setup (WASM)
+
+```bash
+# Install Rust toolchain
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustup target add wasm32-unknown-unknown
+
+# Install tools
+cargo install wasm-pack trunk
+```
+
+### Running the Examples
+
+**Native OpenGL 3.3** examples run directly with `cargo`:
+
+```bash
+# Simple terminal rendering demo (glutin + winit)
+cargo run -p native-terminal
+
+# Terminal emulator with PTY support (vt100 + portable-pty)
+cargo run -p terminal-emulator
+
+# Semi-transparent terminal overlay on a 3D spinning cube
+cargo run -p game-console
+
+# Run with dynamic font atlas (rasterizes system fonts at runtime)
+cargo run -p native-terminal --features dynamic
+```
+
+**WASM/browser** examples require [Trunk](https://trunkrs.dev/):
+
+```bash
+# Wave interference effect (ratzilla + tachyonfx)
+cd examples/canvas_waves && trunk serve
+```
+
+[API Badge]: https://img.shields.io/docsrs/beamterm-renderer?label=docs%20renderer
+[API]: https://docs.rs/beamterm-renderer
+[Core API Badge]: https://img.shields.io/docsrs/beamterm-core?label=docs%20core
+[Core API]: https://docs.rs/beamterm-core
+[Crate Badge]: https://img.shields.io/crates/v/beamterm-renderer.svg
+[Crate]: https://crates.io/crates/beamterm-renderer
+[Deps.rs Badge]: https://deps.rs/repo/github/junkdog/beamterm-renderer/status.svg
+[Deps.rs]: https://deps.rs/repo/github/junkdog/beamterm
+[demos]: https://junkdog.github.io/beamterm/
+[npm]: https://www.npmjs.com/package/@beamterm/renderer
+[NPM Badge]: https://img.shields.io/npm/v/@beamterm/renderer.svg
+[DeepWiki Badge]: https://deepwiki.com/badge.svg
+[DeepWiki]: https://deepwiki.com/junkdog/beamterm
+[rz]: https://github.com/ratatui/ratzilla

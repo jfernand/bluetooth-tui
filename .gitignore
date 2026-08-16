@@ -5,3 +5,5 @@
 # deliberately outside this workspace (see Cargo.toml), so their
 # `target/` directories aren't caught by the root-anchored /target above.
 crates/*/target
+# trunk's build output for bluetooth-tui-web.
+crates/bluetooth-tui-web/dist
