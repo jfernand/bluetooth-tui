@@ -1,6 +1,8 @@
 use std::collections::{HashMap, VecDeque};
 use std::future::Future;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+use web_time::Instant;
 
 use bluetooth_driver::driver::{
     Adapter, Address, BluetoothDriver, Device, DeviceInfo, DriverError, DriverEvent, PnpId,

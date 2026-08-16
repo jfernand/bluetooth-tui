@@ -8,6 +8,12 @@ bluetooth-driver = { path = "../bluetooth-driver" }
 futures-timer = "3.0"
 futures-util = "0.3.34"
 
+# std::time::Instant::now() panics unconditionally on wasm32-unknown-
+# unknown - that target has no clock backend at all in std. web-time
+# is API-compatible with std::time::{Instant, SystemTime}: on native it
+# just re-exports std's, on wasm32 it's backed by Performance.now().
+web-time = "1.1.0"
+
 # default-features = false, dropping just "crossterm" from ratatui's
 # own defaults: this crate is shared with a wasm32 frontend (see
 # key.rs's doc comment), and ratatui's "crossterm" feature pulls in the
