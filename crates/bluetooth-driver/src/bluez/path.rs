@@ -8,7 +8,7 @@ pub(crate) fn adapter_path(id: &AdapterId) -> String {
     format!("/org/bluez/{}", id.as_str())
 }
 
-pub(crate) fn device_path(adapter: &AdapterId, address: Address) -> String {
+pub(crate) fn device_path(adapter: &AdapterId, address: &Address) -> String {
     format!(
         "/org/bluez/{}/dev_{}",
         adapter.as_str(),

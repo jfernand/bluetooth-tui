@@ -128,7 +128,7 @@ pub struct VendorAttribution {
 /// modal for one specific device.
 pub fn quick_vendor_label(device: &BluezDevice) -> Option<String> {
     let address = device.address();
-    if let Some(vendor) = bluetooth_driver::oui::vendor(address) {
+    if let Some(vendor) = bluetooth_driver::oui::vendor(&address) {
         return Some(vendor.to_owned());
     }
     if let Some(&(id, _)) = device.manufacturer_data().first() {
@@ -144,10 +144,10 @@ impl VendorAttribution {
     pub async fn compute(device: &BluezDevice) -> Self {
         let address = device.address();
 
-        let oui = bluetooth_driver::oui::vendor(address).map(str::to_owned);
+        let oui = bluetooth_driver::oui::vendor(&address).map(str::to_owned);
         let oui_caveat = if oui.is_some() {
             "Identifies who registered the radio chip's address block."
-        } else if bluetooth_driver::oui::is_locally_administered(address) {
+        } else if bluetooth_driver::oui::is_locally_administered(&address) {
             "Address is randomized for privacy; carries no manufacturer block."
         } else {
             "No IEEE OUI match for this address."
@@ -328,19 +328,19 @@ impl App {
     /// Position of `selected_address` within `visible_device_indices()`,
     /// if it's currently visible under the active filter.
     pub fn selected_visible_position(&self) -> Option<usize> {
-        let address = self.selected_address?;
+        let address = self.selected_address.clone()?;
         self.visible_device_indices()
             .iter()
             .position(|&i| self.devices[i].address() == address)
     }
 
     pub fn selected_device(&self) -> Option<&BluezDevice> {
-        let address = self.selected_address?;
+        let address = self.selected_address.clone()?;
         self.devices.iter().find(|d| d.address() == address)
     }
 
     fn selected_device_mut(&mut self) -> Option<&mut BluezDevice> {
-        let address = self.selected_address?;
+        let address = self.selected_address.clone()?;
         self.devices.iter_mut().find(|d| d.address() == address)
     }
 
@@ -437,7 +437,7 @@ impl App {
             self.full_info_for = None;
             return;
         };
-        let selection_changed = self.full_info_for != Some(address);
+        let selection_changed = self.full_info_for.as_ref() != Some(&address);
         let stale = self
             .full_info_checked_at
             .is_none_or(|t| t.elapsed() > FULL_INFO_REFRESH_INTERVAL);
@@ -502,7 +502,7 @@ impl App {
             self.battery_for = None;
             return;
         };
-        let selection_changed = self.battery_for != Some(address);
+        let selection_changed = self.battery_for.as_ref() != Some(&address);
         let stale = self
             .battery_checked_at
             .is_none_or(|t| t.elapsed() > BATTERY_REFRESH_INTERVAL);
@@ -546,7 +546,7 @@ impl App {
         if touches_current_adapter {
             match &event {
                 DriverEvent::DeviceFound { address, .. } | DriverEvent::DeviceUpdated { address, .. } => {
-                    self.last_seen.insert(*address, Instant::now());
+                    self.last_seen.insert(address.clone(), Instant::now());
                     self.devices_dirty = true;
                 }
                 DriverEvent::DeviceRemoved { .. } => self.devices_dirty = true,

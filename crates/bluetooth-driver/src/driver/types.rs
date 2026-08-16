@@ -6,27 +6,55 @@ use std::str::FromStr;
 
 use thiserror::Error;
 
-/// A 48-bit Bluetooth device address (BD_ADDR).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Address([u8; 6]);
+/// A Bluetooth device's identity, as seen through a specific backend.
+///
+/// BlueZ/HCI backends deal in a real 48-bit BD_ADDR. Not every backend
+/// can promise that, though: the Web Bluetooth API deliberately hands a
+/// page an opaque, per-origin token instead of the hardware address
+/// (`BluetoothDevice.id`), specifically so a page can't use it to track
+/// a device across sites. `Opaque` carries that kind of identifier -
+/// stable enough to key a `HashMap` or compare for equality, but with
+/// no OUI/vendor-prefix structure to read out of it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Address {
+    Mac([u8; 6]),
+    Opaque(String),
+}
 
 impl Address {
     pub const fn new(octets: [u8; 6]) -> Self {
-        Self(octets)
+        Self::Mac(octets)
     }
 
-    pub const fn octets(&self) -> [u8; 6] {
-        self.0
+    pub fn opaque(id: impl Into<String>) -> Self {
+        Self::Opaque(id.into())
+    }
+
+    /// The raw 48-bit address, if this identifies a real BD_ADDR rather
+    /// than an opaque backend-assigned token.
+    pub const fn octets(&self) -> Option<[u8; 6]> {
+        match self {
+            Self::Mac(octets) => Some(*octets),
+            Self::Opaque(_) => None,
+        }
     }
 }
 
 impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let [a, b, c, d, e, g] = self.0;
-        write!(f, "{a:02X}:{b:02X}:{c:02X}:{d:02X}:{e:02X}:{g:02X}")
+        match self {
+            Self::Mac([a, b, c, d, e, g]) => {
+                write!(f, "{a:02X}:{b:02X}:{c:02X}:{d:02X}:{e:02X}:{g:02X}")
+            }
+            Self::Opaque(id) => f.write_str(id),
+        }
     }
 }
 
+/// Parses a colon-separated hex BD_ADDR (`AA:BB:CC:DD:EE:FF`) into
+/// [`Address::Mac`]. There's no textual form to parse an [`Address::Opaque`]
+/// from - backends that hand out opaque identifiers construct one
+/// directly via [`Address::opaque`].
 impl FromStr for Address {
     type Err = AddressParseError;
 
@@ -40,7 +68,7 @@ impl FromStr for Address {
         if parts.next().is_some() {
             return Err(AddressParseError);
         }
-        Ok(Self(octets))
+        Ok(Self::Mac(octets))
     }
 }
 

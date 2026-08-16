@@ -125,7 +125,7 @@ impl BluezDevice {
         adapter_id: &crate::driver::AdapterId,
         address: Address,
     ) -> Result<Self, DriverError> {
-        let object_path = path::device_path(adapter_id, address);
+        let object_path = path::device_path(adapter_id, &address);
         let props = properties::get_all(&connection, &object_path, INTERFACE).await?;
         Self::build(connection, adapter_id, address, props).await
     }
@@ -145,7 +145,7 @@ impl BluezDevice {
         address: Address,
         props: PropertyMap,
     ) -> Result<Self, DriverError> {
-        let object_path = path::device_path(adapter_id, address);
+        let object_path = path::device_path(adapter_id, &address);
         let adapter_path = path::adapter_path(adapter_id);
         let proxy = proxy::Device1Proxy::new(&connection, object_path.clone())
             .await
@@ -182,7 +182,7 @@ impl BluezDevice {
 
 impl crate::driver::Device for BluezDevice {
     fn address(&self) -> Address {
-        self.address
+        self.address.clone()
     }
 
     fn address_kind(&self) -> AddressKind {

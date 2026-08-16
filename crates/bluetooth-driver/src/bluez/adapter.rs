@@ -108,7 +108,7 @@ impl crate::driver::Adapter for BluezAdapter {
     }
 
     fn address(&self) -> Address {
-        self.address
+        self.address.clone()
     }
 
     fn name(&self) -> &str {
