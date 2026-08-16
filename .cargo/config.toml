@@ -1,0 +1,9 @@
+# web-sys gates its entire Web Bluetooth surface (Bluetooth,
+# BluetoothDevice, BluetoothRemoteGattServer/Service/Characteristic,
+# RequestDeviceOptions, ...) behind this cfg, since Web Bluetooth is a
+# Working Draft, not a stable web standard. Without it those types and
+# methods simply don't exist, even with the right Cargo features
+# enabled. Scoped to wasm32 only - it's meaningless (and unused) for
+# native builds.
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg=web_sys_unstable_apis"]

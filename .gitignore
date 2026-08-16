@@ -1,2 +1,7 @@
 /target
 /.idea
+
+# crates/bluetooth-driver-web and crates/bluetooth-tui-web are
+# deliberately outside this workspace (see Cargo.toml), so their
+# `target/` directories aren't caught by the root-anchored /target above.
+crates/*/target

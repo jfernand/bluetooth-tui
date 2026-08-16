@@ -4,7 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-futures-util = "0.3.34"
 thiserror = "2.0.20"
+
+# futures-util/zbus/tokio back the `bluez` module, which is itself
+# already gated to `#[cfg(target_os = "linux")]` in lib.rs - mirrored
+# here so Cargo skips building the whole zbus -> tokio -> mio stack on
+# other targets entirely, rather than just not compiling the Rust that
+# uses it. That matters concretely for wasm32: mio doesn't support it
+# at all, so without this, anything depending on this crate (even just
+# for the backend-agnostic `driver` module) would fail to build for the
+# web.
+[target.'cfg(target_os = "linux")'.dependencies]
+futures-util = "0.3.34"
 tokio = { version = "1.53.1", features = ["macros", "sync"] }
 zbus = { version = "5", default-features = false, features = ["tokio"] }

@@ -1,5 +1,14 @@
 [workspace]
 resolver = "3"
+## Note: crates/bluetooth-driver-web (and its bluetooth-tui-web
+## frontend) are deliberately NOT workspace members. They only build for
+## wasm32-unknown-unknown (web-sys's Web Bluetooth bindings need
+## --cfg=web_sys_unstable_apis, which crates/.cargo/config.toml scopes
+## to that target only) - `cargo check --workspace`/`--target
+## wasm32-unknown-unknown` from here would otherwise fail. Check them
+## from within their own directory instead, where each is its own
+## implicit single-crate workspace:
+##   cd crates/bluetooth-driver-web && cargo check --target wasm32-unknown-unknown
 members = ["crates/bluetooth-driver", "crates/bluetooth-tui", "crates/bluetooth-tui-core"]
 
 # Fast iteration: keep our own crates unoptimized (cheap to recompile),

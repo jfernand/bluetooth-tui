@@ -1,0 +1,29 @@
+[package]
+name = "bluetooth-driver-web"
+version = "0.1.0"
+edition = "2024"
+
+# Deliberately not a member of the parent workspace (see the note in
+# the root Cargo.toml) - this makes it its own standalone workspace
+# root instead of erroring out for being an orphaned package.
+[workspace]
+
+[dependencies]
+bluetooth-driver = { path = "../bluetooth-driver" }
+js-sys = "0.3"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    "Bluetooth",
+    "BluetoothDevice",
+    "BluetoothRemoteGattCharacteristic",
+    "BluetoothRemoteGattServer",
+    "BluetoothRemoteGattService",
+    "DomException",
+    "Navigator",
+    "RequestDeviceOptions",
+    "Window",
+]
