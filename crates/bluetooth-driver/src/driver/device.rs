@@ -20,7 +20,7 @@ pub trait Device {
 
     /// Sets the alias. An empty string resets it back to the device's
     /// advertised/read name.
-    fn set_alias(&mut self, alias: &str) -> impl Future<Output = Result<(), DriverError>> + Send;
+    fn set_alias(&mut self, alias: &str) -> impl Future<Output = Result<(), DriverError>>;
 
     fn class(&self) -> Option<DeviceClass>;
 
@@ -79,37 +79,37 @@ pub trait Device {
     /// Source can point at a real USB-IF-assigned VID rather than just a
     /// Bluetooth SIG company ID. Requires an active, service-resolved
     /// connection; returns `Ok(None)` if the device doesn't expose it.
-    fn pnp_id(&self) -> impl Future<Output = Result<Option<PnpId>, DriverError>> + Send;
+    fn pnp_id(&self) -> impl Future<Output = Result<Option<PnpId>, DriverError>>;
 
     /// Reads the GATT Battery Service's Battery Level characteristic
     /// (0x2A19) as a 0-100 percentage. Requires an active,
     /// service-resolved connection; returns `Ok(None)` if the device
     /// doesn't expose it.
-    fn battery_percent(&self) -> impl Future<Output = Result<Option<u8>, DriverError>> + Send;
+    fn battery_percent(&self) -> impl Future<Output = Result<Option<u8>, DriverError>>;
 
     /// Reads whichever of the GATT Device Information Service's
     /// Manufacturer Name (0x2A29), Model Number (0x2A24), and Firmware
     /// Revision (0x2A26) String characteristics the device exposes.
     /// Requires an active, service-resolved connection; fields the
     /// device doesn't expose come back `None` rather than erroring.
-    fn device_information(&self) -> impl Future<Output = Result<DeviceInfo, DriverError>> + Send;
+    fn device_information(&self) -> impl Future<Output = Result<DeviceInfo, DriverError>>;
 
     /// Initiate pairing/bonding. Resolves once bonding succeeds, fails,
     /// or is rejected by whatever pairing agent is registered.
-    fn pair(&mut self) -> impl Future<Output = Result<(), DriverError>> + Send;
+    fn pair(&mut self) -> impl Future<Output = Result<(), DriverError>>;
 
     /// Open an ACL/LE connection.
-    fn connect(&mut self) -> impl Future<Output = Result<(), DriverError>> + Send;
+    fn connect(&mut self) -> impl Future<Output = Result<(), DriverError>>;
 
-    fn disconnect(&mut self) -> impl Future<Output = Result<(), DriverError>> + Send;
+    fn disconnect(&mut self) -> impl Future<Output = Result<(), DriverError>>;
 
     /// Forget the device: drop bonding keys and any cached state.
-    fn remove(&mut self) -> impl Future<Output = Result<(), DriverError>> + Send;
+    fn remove(&mut self) -> impl Future<Output = Result<(), DriverError>>;
 
-    fn set_trusted(&mut self, trusted: bool) -> impl Future<Output = Result<(), DriverError>> + Send;
+    fn set_trusted(&mut self, trusted: bool) -> impl Future<Output = Result<(), DriverError>>;
 
-    fn set_blocked(&mut self, blocked: bool) -> impl Future<Output = Result<(), DriverError>> + Send;
+    fn set_blocked(&mut self, blocked: bool) -> impl Future<Output = Result<(), DriverError>>;
 
     /// Re-read live properties (RSSI, connected, ...) from the driver.
-    fn refresh(&mut self) -> impl Future<Output = Result<(), DriverError>> + Send;
+    fn refresh(&mut self) -> impl Future<Output = Result<(), DriverError>>;
 }

@@ -12,23 +12,23 @@ pub trait BluetoothDriver {
     type Adapter: Adapter;
     type Events: EventStream;
 
-    fn adapters(&self) -> impl Future<Output = Result<Vec<Self::Adapter>, DriverError>> + Send;
+    fn adapters(&self) -> impl Future<Output = Result<Vec<Self::Adapter>, DriverError>>;
 
     fn adapter(
         &self,
         id: &AdapterId,
-    ) -> impl Future<Output = Result<Option<Self::Adapter>, DriverError>> + Send;
+    ) -> impl Future<Output = Result<Option<Self::Adapter>, DriverError>>;
 
     /// Subscribe to live driver events — the feed behind `bluetoothctl`'s
     /// scan output and property-change notifications.
-    fn events(&self) -> impl Future<Output = Result<Self::Events, DriverError>> + Send;
+    fn events(&self) -> impl Future<Output = Result<Self::Events, DriverError>>;
 }
 
 /// A pull-based event stream. Kept as a plain async trait rather than
 /// `futures::Stream` so this crate carries no async-runtime dependency
 /// of its own.
 pub trait EventStream {
-    fn next(&mut self) -> impl Future<Output = Option<DriverEvent>> + Send;
+    fn next(&mut self) -> impl Future<Output = Option<DriverEvent>>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
