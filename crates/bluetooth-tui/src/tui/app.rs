@@ -1,4 +1,5 @@
 use std::collections::{HashMap, VecDeque};
+use std::future::Future;
 use std::time::{Duration, Instant};
 
 use bluetooth_driver::bluez::{BluezAdapter, BluezDevice, BluezDriver};
@@ -9,6 +10,17 @@ use bluetooth_driver::driver::{
 
 const BATTERY_REFRESH_INTERVAL: Duration = Duration::from_secs(10);
 const FULL_INFO_REFRESH_INTERVAL: Duration = Duration::from_secs(15);
+
+/// Bounds silent, periodic background calls (device list / battery / full
+/// info / adapter refresh) far tighter than the driver's own 30s
+/// connection-level timeout. Those run every tick with nobody watching,
+/// so stalling the whole UI for 30s before the "BlueZ not responding"
+/// badge even shows up reads as a hang, not a slow response. User-
+/// initiated actions like pair/connect deliberately skip this and keep
+/// the driver's longer timeout instead - the user pressed a key and is
+/// already watching, and a real pairing flow can legitimately need to
+/// wait on a passkey confirmation elsewhere.
+const BACKGROUND_CALL_TIMEOUT: Duration = Duration::from_secs(5);
 
 const MAX_LOGGED_EVENTS: usize = 5_000;
 const STATUS_BANNER_LIFETIME: Duration = Duration::from_secs(6);
@@ -376,7 +388,7 @@ impl App {
         let Some(adapter) = self.adapters.get(self.adapter_idx) else {
             return;
         };
-        match adapter.devices().await {
+        match background_timeout(adapter.devices()).await {
             Ok(devices) => {
                 self.devices = devices;
                 self.devices_dirty = false;
@@ -449,7 +461,7 @@ impl App {
         // expression it's used in, so it never overlaps the `&mut self`
         // calls to note_bluez_*() below.
         let device_info_result = match self.selected_device() {
-            Some(device) => device.device_information().await,
+            Some(device) => background_timeout(device.device_information()).await,
             None => {
                 self.full_info = None;
                 return;
@@ -460,7 +472,7 @@ impl App {
             Ok(device_info) => {
                 self.note_bluez_ok();
                 let pnp_result = match self.selected_device() {
-                    Some(device) => Some(device.pnp_id().await),
+                    Some(device) => Some(background_timeout(device.pnp_id()).await),
                     None => None,
                 };
                 let pnp_id = match pnp_result {
@@ -510,7 +522,7 @@ impl App {
         self.battery_for = Some(address);
         self.battery_checked_at = Some(Instant::now());
         let result = match self.selected_device() {
-            Some(device) => Some(device.battery_percent().await),
+            Some(device) => Some(background_timeout(device.battery_percent()).await),
             None => None,
         };
         self.battery = match result {
@@ -540,7 +552,7 @@ impl App {
                 DriverEvent::DeviceRemoved { .. } => self.devices_dirty = true,
                 DriverEvent::PoweredChanged { .. } | DriverEvent::DiscoveringChanged { .. } => {
                     let result = match self.adapters.get_mut(self.adapter_idx) {
-                        Some(adapter) => Some(adapter.refresh().await),
+                        Some(adapter) => Some(background_timeout(adapter.refresh()).await),
                         None => None,
                     };
                     match result {
@@ -964,6 +976,19 @@ impl PaletteCommand {
         let query = query.to_lowercase();
         Self::ALL.iter().filter(|entry| entry.1.contains(&query)).collect()
     }
+}
+
+/// Races a background driver call against [`BACKGROUND_CALL_TIMEOUT`],
+/// on top of (well inside) the driver's own connection-level timeout.
+/// Dropping the losing future on timeout is safe: it's just an
+/// in-progress D-Bus reply read, and zbus discards the reply if one
+/// eventually arrives for a call nobody's waiting on anymore.
+async fn background_timeout<T>(
+    fut: impl Future<Output = Result<T, DriverError>>,
+) -> Result<T, DriverError> {
+    tokio::time::timeout(BACKGROUND_CALL_TIMEOUT, fut)
+        .await
+        .unwrap_or(Err(DriverError::Timeout))
 }
 
 fn wrap_index(current: usize, delta: i32, len: usize) -> usize {
