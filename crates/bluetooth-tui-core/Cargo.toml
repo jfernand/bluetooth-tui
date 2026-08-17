@@ -1,10 +1,16 @@
 [package]
 name = "bluetooth-tui-core"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared ratatui app state and rendering for bluetooth-tui, generic over any bluetooth-driver backend"
+readme = "../../README.md"
+keywords = ["bluetooth", "tui", "ratatui"]
+categories = ["gui"]
 
 [dependencies]
-bluetooth-driver = { path = "../bluetooth-driver" }
+bluetooth-driver = { path = "../bluetooth-driver", version = "0.1.0" }
 futures-util = "0.3.34"
 
 # "wasm-bindgen" feature required: without it, futures-timer's Delay

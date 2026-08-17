@@ -2,6 +2,15 @@
 name = "bluetooth-driver-web"
 version = "0.1.0"
 edition = "2024"
+# Not `field.workspace = true`: this crate is its own standalone
+# workspace root (see below), so it can't inherit from the main
+# workspace's [workspace.package] - kept identical by hand instead.
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jfernand/bluetooth-tui"
+description = "A Web Bluetooth (navigator.bluetooth) backend for bluetooth-driver's BluetoothDriver trait"
+readme = "../../README.md"
+keywords = ["bluetooth", "wasm", "web-bluetooth", "ble"]
+categories = ["hardware-support", "wasm"]
 
 # Deliberately not a member of the parent workspace (see the note in
 # the root Cargo.toml) - this makes it its own standalone workspace
@@ -9,7 +18,7 @@ edition = "2024"
 [workspace]
 
 [dependencies]
-bluetooth-driver = { path = "../bluetooth-driver" }
+bluetooth-driver = { path = "../bluetooth-driver", version = "0.1.0" }
 js-sys = "0.3"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"

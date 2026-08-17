@@ -1,7 +1,13 @@
 [package]
 name = "bluetooth-driver"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Backend-agnostic Bluetooth traits (mirroring bluetoothctl) with a BlueZ D-Bus implementation"
+readme = "../../README.md"
+keywords = ["bluetooth", "bluez", "dbus", "ble"]
+categories = ["hardware-support", "os::linux-apis"]
 
 [dependencies]
 thiserror = "2.0.20"

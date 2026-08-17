@@ -11,6 +11,16 @@ resolver = "3"
 ##   cd crates/bluetooth-driver-web && cargo check --target wasm32-unknown-unknown
 members = ["crates/bluetooth-driver", "crates/bluetooth-tui", "crates/bluetooth-tui-core"]
 
+# Shared by every in-workspace crate's [package] via `field.workspace =
+# true`. bluetooth-driver-web is its own separate workspace root (see
+# the note above) and can't inherit from here, so it repeats these
+# explicitly.
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jfernand/bluetooth-tui"
+
 # Fast iteration: keep our own crates unoptimized (cheap to recompile),
 # but build dependencies at opt-level 3 once and reuse them.
 [profile.dev]
