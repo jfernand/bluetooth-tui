@@ -32,41 +32,64 @@ const BACKGROUND_CALL_TIMEOUT: Duration = Duration::from_secs(5);
 const MAX_LOGGED_EVENTS: usize = 5_000;
 const STATUS_BANNER_LIFETIME: Duration = Duration::from_secs(6);
 
+/// Which top-level screen is showing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
+    /// Adapters + device list + detail pane.
     Shell,
+    /// Live scan results.
     Discovery,
+    /// The driver event log.
     EventLog,
+    /// Power/discoverable/pairable controls for the current adapter.
     AdapterControl,
 }
 
+/// Which modal, if any, is currently drawn on top of the active screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Overlay {
+    /// No overlay open.
     None,
+    /// The vendor-attribution chain for the selected device.
     Vendor,
+    /// Editing the selected device's alias.
     AliasEdit,
+    /// The keymap reference.
     Help,
+    /// The `:`-triggered command palette.
     Palette,
+    /// "Forget this device?" confirmation before `App::forget_selected`.
     ConfirmForget,
 }
 
+/// Which column has keyboard focus on the Shell screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Focus {
+    /// The adapters column.
     Adapters,
+    /// The device list column.
     Devices,
+    /// The detail pane.
     Detail,
 }
 
+/// Which subset of `App::devices` is shown, cycled with `/`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceFilter {
+    /// Every known device.
     All,
+    /// Only paired devices.
     Paired,
+    /// Only currently-connected devices.
     Connected,
+    /// Only unpaired ("nearby") devices - the Discovery screen's default.
     Nearby,
+    /// Only blocked devices.
     Blocked,
 }
 
 impl DeviceFilter {
+    /// The filter's label as shown in the filter bar (e.g. `"PAIRED"`).
     pub fn label(self) -> &'static str {
         match self {
             Self::All => "ALL",
@@ -77,6 +100,7 @@ impl DeviceFilter {
         }
     }
 
+    /// Whether `device` belongs in this filter's subset.
     pub fn matches<Dev: Device>(self, device: &Dev) -> bool {
         match self {
             Self::All => true,
@@ -98,34 +122,53 @@ impl DeviceFilter {
     }
 }
 
+/// Whether a `StatusBanner` reports success or failure - drives its color.
 pub enum BannerKind {
+    /// A successful action.
     Info,
+    /// A failed action.
     Error,
 }
 
+/// A transient banner shown after an action, auto-dismissed after
+/// `STATUS_BANNER_LIFETIME`.
 pub struct StatusBanner {
+    /// Success or failure.
     pub kind: BannerKind,
+    /// Short heading, e.g. `"CONNECT FAILED"`.
     pub title: String,
+    /// Detail text, typically a `DriverError`'s message.
     pub body: String,
+    /// When the banner was shown, for the auto-dismiss timer.
     pub shown_at: Instant,
 }
 
+/// One entry in the event log.
 pub struct LoggedEvent {
+    /// When this app observed the event.
     pub at: Instant,
+    /// The event itself.
     pub event: DriverEvent,
 }
 
 /// One tier of the vendor-attribution chain, as shown in the vendor
 /// modal - each tier states plainly what it actually proves.
 pub struct VendorTier {
+    /// This tier's name, e.g. `"TIER 1 · GATT PnP ID"`.
     pub label: &'static str,
+    /// What this tier's result does or doesn't prove.
     pub caveat: &'static str,
+    /// The resolved vendor name, if this tier found one.
     pub result: Option<String>,
+    /// How many of the confidence dots to fill (0-3).
     pub confidence: u8, // 0-3 dots
 }
 
+/// The full vendor-attribution chain for one device, across all tiers.
 pub struct VendorAttribution {
+    /// The best available answer across every tier, highest-confidence first.
     pub resolved: Option<String>,
+    /// Each tier's own attempt, in display order.
     pub tiers: Vec<VendorTier>,
 }
 
@@ -148,6 +191,9 @@ pub fn quick_vendor_label<Dev: Device>(device: &Dev) -> Option<String> {
 }
 
 impl VendorAttribution {
+    /// Runs the full three-tier vendor lookup for `device`, including a
+    /// live GATT PnP ID read - only worth the round trip when the user
+    /// actually opens the vendor modal for this one device.
     pub async fn compute<Dev: Device>(device: &Dev) -> Self {
         let address = device.address();
 
@@ -214,11 +260,19 @@ impl VendorAttribution {
     }
 }
 
+/// The whole application's state, generic over any `BluetoothDriver`
+/// backend. Owned outright by whichever frontend's run loop is
+/// driving it; every screen in `ui/*.rs` renders from a `&App<D>`.
 pub struct App<D: BluetoothDriver> {
+    /// The backend this app is driving.
     pub driver: D,
+    /// Every local adapter the driver reported.
     pub adapters: Vec<D::Adapter>,
+    /// Index into `adapters` of the currently-selected one.
     pub adapter_idx: usize,
+    /// The current adapter's devices.
     pub devices: Vec<DeviceOf<D>>,
+    /// Which subset of `devices` is currently shown.
     pub device_filter: DeviceFilter,
     /// Which device is selected, tracked by address rather than position.
     /// `visible_device_indices()` re-sorts by RSSI on every call, and
@@ -226,16 +280,28 @@ pub struct App<D: BluetoothDriver> {
     /// would silently point at a different device every time the list
     /// reshuffles or refreshes.
     pub selected_address: Option<Address>,
+    /// Which column has keyboard focus on the Shell screen.
     pub focus: Focus,
+    /// Whether the Shell screen's detail pane is expanded fullscreen.
     pub fullscreen_detail: bool,
+    /// Which top-level screen is showing.
     pub screen: Screen,
+    /// Which modal, if any, is drawn on top of `screen`.
     pub overlay: Overlay,
+    /// Live text buffer for the alias-edit overlay.
     pub alias_buffer: String,
+    /// Live text buffer for the command palette.
     pub palette_buffer: String,
+    /// Every driver event observed so far, oldest first.
     pub events: VecDeque<LoggedEvent>,
+    /// How many logged events haven't been viewed on the Events screen yet.
     pub unseen_events: usize,
+    /// A transient success/failure banner, if one's currently showing.
     pub status: Option<StatusBanner>,
+    /// When the current scan started, for the elapsed-time display.
     pub scan_started_at: Option<Instant>,
+    /// The selected device's vendor-attribution chain, once computed
+    /// for the vendor overlay.
     pub vendor_info: Option<VendorAttribution>,
     /// Battery level cache for whichever device is currently selected -
     /// a live GATT read, so it's fetched on selection change / a slow
@@ -256,16 +322,26 @@ pub struct App<D: BluetoothDriver> {
     /// answering - a restart is the common case) and cleared the next
     /// time any call succeeds; drives the header's warning badge.
     pub bluez_unresponsive_since: Option<Instant>,
+    /// Whether `devices` needs re-fetching on the next tick.
     pub devices_dirty: bool,
+    /// Set when the user has asked to quit; the run loop exits once true.
     pub should_quit: bool,
 }
 
+/// The selected device's GATT Device Information + PnP ID, as shown on
+/// the fullscreen detail view.
 pub struct FullDeviceInfo {
+    /// Manufacturer/model/firmware text fields.
     pub device_info: DeviceInfo,
+    /// The parsed PnP ID characteristic, if the device exposes one.
     pub pnp_id: Option<PnpId>,
 }
 
 impl<D: BluetoothDriver> App<D> {
+    /// Builds the initial app state: lists adapters, then the first
+    /// adapter's devices. Tolerant of a slow/unresponsive backend at
+    /// startup (see the `background_timeout` calls below) - this
+    /// resolves promptly either way rather than hanging construction.
     pub async fn new(driver: D) -> Result<Self, DriverError> {
         // Neither call can be allowed to hang construction forever or
         // abort it outright: a slow/unresponsive backend at startup
@@ -328,10 +404,13 @@ impl<D: BluetoothDriver> App<D> {
         Ok(app)
     }
 
+    /// The currently-selected adapter, if `adapters` isn't empty.
     pub fn current_adapter(&self) -> Option<&D::Adapter> {
         self.adapters.get(self.adapter_idx)
     }
 
+    /// Indices into `devices` matching `device_filter`, sorted by RSSI
+    /// descending (strongest signal first; devices with no RSSI sort last).
     pub fn visible_device_indices(&self) -> Vec<usize> {
         let mut indices: Vec<usize> = self
             .devices
@@ -355,6 +434,7 @@ impl<D: BluetoothDriver> App<D> {
             .position(|&i| self.devices[i].address() == address)
     }
 
+    /// The device at `selected_address`, if it's still known.
     pub fn selected_device(&self) -> Option<&DeviceOf<D>> {
         let address = self.selected_address.clone()?;
         self.devices.iter().find(|d| d.address() == address)
@@ -379,6 +459,7 @@ impl<D: BluetoothDriver> App<D> {
             .map(|&i| self.devices[i].address());
     }
 
+    /// Shows a success banner, replacing any currently showing.
     pub fn set_status_ok(&mut self, title: impl Into<String>, body: impl Into<String>) {
         self.status = Some(StatusBanner {
             kind: BannerKind::Info,
@@ -388,6 +469,8 @@ impl<D: BluetoothDriver> App<D> {
         });
     }
 
+    /// Shows a failure banner (the error's `Display` as the body),
+    /// replacing any currently showing.
     pub fn set_status_err(&mut self, title: impl Into<String>, err: &DriverError) {
         self.status = Some(StatusBanner {
             kind: BannerKind::Error,
@@ -433,6 +516,10 @@ impl<D: BluetoothDriver> App<D> {
         self.normalize_selection();
     }
 
+    /// Periodic housekeeping: refreshes `devices` if dirty, expires the
+    /// status banner, and refreshes battery/full-info if either is
+    /// stale or the selection changed. Call this on a timer - both
+    /// frontends use a 250ms one.
     pub async fn on_tick(&mut self) {
         if self.devices_dirty {
             self.refresh_devices().await;
@@ -559,6 +646,10 @@ impl<D: BluetoothDriver> App<D> {
         };
     }
 
+    /// Applies one live event from the driver's event stream: updates
+    /// relevant state (last-seen timestamps, devices_dirty, ...) and
+    /// appends it to the event log. Call this for every event the
+    /// backend's `EventStream` yields.
     pub async fn handle_driver_event(&mut self, event: DriverEvent) {
         let touches_current_adapter = match self.current_adapter() {
             Some(adapter) => event_adapter_id(&event) == Some(adapter.id()),
@@ -597,6 +688,9 @@ impl<D: BluetoothDriver> App<D> {
         }
     }
 
+    /// Applies one key press, dispatching to whatever overlay/screen
+    /// is currently active. Call this for every key event the
+    /// frontend's input source yields.
     pub async fn handle_key(&mut self, key: Key) {
 
         if self.overlay != Overlay::None {
@@ -950,21 +1044,37 @@ impl<D: BluetoothDriver> App<D> {
 /// direct keybinding if it has one.
 pub struct PaletteEntry(pub PaletteCommand, pub &'static str, pub &'static str, pub Option<&'static str>);
 
+/// One action reachable from the command palette - see `PaletteEntry::ALL`
+/// for each command's name/description/keybinding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PaletteCommand {
+    /// Mark the selected device trusted.
     Trust,
+    /// Remove trust from the selected device.
     Untrust,
+    /// Block the selected device.
     Block,
+    /// Unblock the selected device.
     Unblock,
+    /// Pair with the selected device.
     Pair,
+    /// Connect/disconnect the selected device.
     Connect,
+    /// Forget the selected device (removes bonding keys).
     Forget,
+    /// Edit the selected device's alias.
     Alias,
+    /// Start/stop discovery.
     ScanToggle,
+    /// Refresh the device list.
     Refresh,
+    /// Open the event log.
     Events,
+    /// Open adapter control.
     AdapterControl,
+    /// Show the keymap.
     Help,
+    /// Quit.
     Quit,
 }
 

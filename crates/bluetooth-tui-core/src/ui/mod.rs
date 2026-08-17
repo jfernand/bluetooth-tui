@@ -16,6 +16,9 @@ use bluetooth_driver::driver::BluetoothDriver;
 use crate::app::{App, Overlay, Screen};
 use crate::theme;
 
+/// Renders the whole UI for the current frame: the active screen, then
+/// any open overlay/modal, then a status banner if one's showing. Call
+/// this once per redraw - both frontends' run loops do.
 pub fn draw<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>) {
     let area = frame.area();
     frame.render_widget(Block::default().style(Style::default().bg(theme::BG_BASE)), area);
