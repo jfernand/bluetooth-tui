@@ -10,6 +10,7 @@ pub trait Device {
     /// Stable hardware address; the handle's identity.
     fn address(&self) -> Address;
 
+    /// Whether `address()` is a public (burned-in) or random address.
     fn address_kind(&self) -> AddressKind;
 
     /// Name as advertised or read from the device itself.
@@ -22,6 +23,9 @@ pub trait Device {
     /// advertised/read name.
     fn set_alias(&mut self, alias: &str) -> impl Future<Output = Result<(), DriverError>>;
 
+    /// Classic Bluetooth Class of Device bitfield - `None` for LE-only
+    /// devices, which don't report one. See the `device_class` module
+    /// to decode it.
     fn class(&self) -> Option<DeviceClass>;
 
     /// GAP Appearance value (icon/category hint, e.g. "mouse" or
@@ -42,10 +46,17 @@ pub trait Device {
     /// more granular GAP Appearance value.
     fn icon(&self) -> Option<&str>;
 
+    /// Whether pairing has completed with this device.
     fn is_paired(&self) -> bool;
+    /// Whether long-term bonding keys are stored for this device
+    /// (survives disconnection, unlike a bare pairing).
     fn is_bonded(&self) -> bool;
+    /// Whether an ACL/LE connection is currently open.
     fn is_connected(&self) -> bool;
+    /// Whether this device is trusted to auto-reconnect and access
+    /// services without per-connection authorization prompts.
     fn is_trusted(&self) -> bool;
+    /// Whether incoming connections from this device are rejected.
     fn is_blocked(&self) -> bool;
 
     /// Whether pairing used the pre-4.1 method rather than Secure
@@ -101,13 +112,16 @@ pub trait Device {
     /// Open an ACL/LE connection.
     fn connect(&mut self) -> impl Future<Output = Result<(), DriverError>>;
 
+    /// Close an open ACL/LE connection.
     fn disconnect(&mut self) -> impl Future<Output = Result<(), DriverError>>;
 
     /// Forget the device: drop bonding keys and any cached state.
     fn remove(&mut self) -> impl Future<Output = Result<(), DriverError>>;
 
+    /// Sets whether this device is trusted (see `is_trusted`).
     fn set_trusted(&mut self, trusted: bool) -> impl Future<Output = Result<(), DriverError>>;
 
+    /// Sets whether incoming connections from this device are rejected.
     fn set_blocked(&mut self, blocked: bool) -> impl Future<Output = Result<(), DriverError>>;
 
     /// Re-read live properties (RSSI, connected, ...) from the driver.

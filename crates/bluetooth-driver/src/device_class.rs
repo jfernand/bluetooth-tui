@@ -24,6 +24,7 @@
 /// A decoded Class of Device bitfield.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassOfDevice {
+    /// E.g. "Computer", "Phone", "Audio/Video" - the top-level category.
     pub major_device_class: &'static str,
     /// Meaning depends on the major class; `None` for majors with no
     /// assigned minor-class table (Miscellaneous, Imaging, Uncategorized).

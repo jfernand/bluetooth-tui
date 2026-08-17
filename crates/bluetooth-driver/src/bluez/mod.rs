@@ -11,9 +11,13 @@ mod path;
 mod properties;
 mod proxy;
 
+/// [`BluezAdapter`], the `Adapter` implementation for a BlueZ `hciN` controller.
 pub mod adapter;
+/// [`BluezDevice`], the `Device` implementation for a BlueZ remote device.
 pub mod device;
+/// [`BluezDriver`], the `BluetoothDriver` entry point.
 pub mod driver;
+/// [`BluezEvents`], the `EventStream` fed by BlueZ's D-Bus signals.
 pub mod events;
 
 pub use adapter::BluezAdapter;

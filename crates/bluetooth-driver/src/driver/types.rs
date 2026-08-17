@@ -17,15 +17,20 @@ use thiserror::Error;
 /// no OUI/vendor-prefix structure to read out of it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Address {
+    /// A real 48-bit BD_ADDR (`AA:BB:CC:DD:EE:FF`).
     Mac([u8; 6]),
+    /// A backend-assigned identifier with no relation to any real
+    /// hardware address.
     Opaque(String),
 }
 
 impl Address {
+    /// Builds an [`Address::Mac`] from raw octets.
     pub const fn new(octets: [u8; 6]) -> Self {
         Self::Mac(octets)
     }
 
+    /// Builds an [`Address::Opaque`] from a backend-assigned identifier.
     pub fn opaque(id: impl Into<String>) -> Self {
         Self::Opaque(id.into())
     }
@@ -72,6 +77,7 @@ impl FromStr for Address {
     }
 }
 
+/// [`Address`]'s [`FromStr`] failed: the input wasn't six colon-separated hex octets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 #[error("invalid Bluetooth address, expected AA:BB:CC:DD:EE:FF")]
 pub struct AddressParseError;
@@ -80,7 +86,10 @@ pub struct AddressParseError;
 /// resolvable/non-resolvable private address instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AddressKind {
+    /// A burned-in, stable hardware address.
     Public,
+    /// A resolvable or non-resolvable private address, which may
+    /// rotate over time for privacy.
     Random,
 }
 
@@ -89,10 +98,12 @@ pub enum AddressKind {
 pub struct AdapterId(String);
 
 impl AdapterId {
+    /// Wraps a backend-specific controller id (e.g. `"hci0"`).
     pub fn new(id: impl Into<String>) -> Self {
         Self(id.into())
     }
 
+    /// The id as a plain string slice.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -119,9 +130,13 @@ pub struct DeviceClass(pub u32);
 /// company identifier or an actual USB-IF-assigned VID.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PnpId {
+    /// Whether `vendor_id` is a Bluetooth SIG company identifier or a USB-IF-assigned VID.
     pub vendor_id_source: VendorIdSource,
+    /// The vendor identifier itself, meaning dependent on `vendor_id_source`.
     pub vendor_id: u16,
+    /// Vendor-assigned product identifier.
     pub product_id: u16,
+    /// Vendor-assigned product version.
     pub product_version: u16,
 }
 
@@ -147,9 +162,12 @@ impl PnpId {
     }
 }
 
+/// Which registry a [`PnpId::vendor_id`] was assigned from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VendorIdSource {
+    /// A Bluetooth SIG-assigned company identifier.
     BluetoothSig,
+    /// A USB-IF-assigned Vendor ID.
     Usb,
 }
 
@@ -158,8 +176,11 @@ pub enum VendorIdSource {
 /// itself, separate from the more structured `PnpId`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DeviceInfo {
+    /// Manufacturer Name String (0x2A29), if the device exposes it.
     pub manufacturer: Option<String>,
+    /// Model Number String (0x2A24), if the device exposes it.
     pub model: Option<String>,
+    /// Firmware Revision String (0x2A26), if the device exposes it.
     pub firmware: Option<String>,
 }
 
@@ -194,6 +215,8 @@ impl FromStr for Uuid {
     }
 }
 
+/// [`Uuid`]'s [`FromStr`] failed: the input wasn't 32 hex digits
+/// (hyphens are ignored, so both the dashed and undashed forms parse).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 #[error("invalid Bluetooth UUID")]
 pub struct UuidParseError;
