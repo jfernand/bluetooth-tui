@@ -5,8 +5,18 @@ edition = "2024"
 
 [dependencies]
 bluetooth-driver = { path = "../bluetooth-driver" }
-futures-timer = "3.0"
 futures-util = "0.3.34"
+
+# "wasm-bindgen" feature required: without it, futures-timer's Delay
+# silently falls back to its `native` module even on wasm32 (it's
+# gated on the feature, not just target_arch), and that module calls
+# std::time::Instant::now() - the exact same "time not implemented on
+# this platform" panic web-time was added to fix, just from here
+# instead. Harmless on native: the feature only pulls in the
+# gloo-timers/send_wrapper deps it needs under a
+# cfg(target_arch = "wasm32") target dependency in futures-timer's own
+# Cargo.toml, so it's a no-op there regardless.
+futures-timer = { version = "3.0", features = ["wasm-bindgen"] }
 
 # std::time::Instant::now() panics unconditionally on wasm32-unknown-
 # unknown - that target has no clock backend at all in std. web-time

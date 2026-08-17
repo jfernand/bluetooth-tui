@@ -267,11 +267,22 @@ pub struct FullDeviceInfo {
 
 impl<D: BluetoothDriver> App<D> {
     pub async fn new(driver: D) -> Result<Self, DriverError> {
-        let adapters = driver.adapters().await?;
-        let devices = if let Some(adapter) = adapters.first() {
-            adapter.devices().await?
-        } else {
-            Vec::new()
+        // Neither call can be allowed to hang construction forever or
+        // abort it outright: a slow/unresponsive backend at startup
+        // (BlueZ restarting, or a browser whose Web Bluetooth
+        // getDevices() never resolves without a real backing
+        // implementation - observed in an automated/headless browser
+        // during this project's own testing) would otherwise leave the
+        // app stuck with nothing ever rendered and no visible error.
+        // Fall back to empty and let the normal tick-driven retry path
+        // (devices_dirty) pick it up once the backend answers.
+        let adapters = background_timeout(driver.adapters()).await.unwrap_or_default();
+        let (devices, initial_timeout) = match adapters.first() {
+            Some(adapter) => match background_timeout(adapter.devices()).await {
+                Ok(devices) => (devices, false),
+                Err(_) => (Vec::new(), true),
+            },
+            None => (Vec::new(), false),
         };
         // If discovery was already running before this app started (e.g.
         // left on from bluetoothctl), we don't know the true start time -
@@ -307,9 +318,12 @@ impl<D: BluetoothDriver> App<D> {
             full_info_checked_at: None,
             last_seen: HashMap::new(),
             bluez_unresponsive_since: None,
-            devices_dirty: false,
+            devices_dirty: initial_timeout,
             should_quit: false,
         };
+        if initial_timeout {
+            app.note_bluez_timeout();
+        }
         app.normalize_selection();
         Ok(app)
     }

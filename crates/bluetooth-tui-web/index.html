@@ -10,6 +10,18 @@
             padding: 0;
             background: #0a0a0a;
             height: 100%;
+            overflow: hidden;
+        }
+        body {
+            /* ratzilla's DomBackend measures a cell's pixel width via
+               CSS `1ch` in whatever font this page inherits, then lays
+               out one <span> per character using that measurement. In
+               a proportional font, `1ch` (the "0" glyph's width) and a
+               given character's actual rendered width disagree, so the
+               grid math is wrong throughout - cells drift out of
+               alignment and the rendered grid overflows the window.
+               A monospace font is required, not just a style choice. */
+            font-family: ui-monospace, "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
         }
     </style>
     <link data-trunk rel="rust" data-bin="bluetooth-tui-web" />

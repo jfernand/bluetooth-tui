@@ -14,7 +14,10 @@ bluetooth-driver-web = { path = "../bluetooth-driver-web" }
 bluetooth-tui-core = { path = "../bluetooth-tui-core" }
 console_error_panic_hook = "0.1"
 futures-channel = "0.3.34"
-futures-timer = "3.0"
+# "wasm-bindgen" feature required - see bluetooth-tui-core's Cargo.toml
+# for why: without it, Delay::new() silently uses futures-timer's
+# native (std::time::Instant-based) module even here, panicking.
+futures-timer = { version = "3.0", features = ["wasm-bindgen"] }
 futures-util = "0.3.34"
 ratzilla = "0.3.1"
 wasm-bindgen-futures = "0.4"
