@@ -198,7 +198,7 @@ dependencies = [
 
 [[package]]
 name = "bluetooth-driver"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "futures-util",
  "thiserror 2.0.20",
@@ -208,7 +208,7 @@ dependencies = [
 
 [[package]]
 name = "bluetooth-driver-web"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bluetooth-driver",
  "js-sys",
@@ -219,7 +219,7 @@ dependencies = [
 
 [[package]]
 name = "bluetooth-tui-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bluetooth-driver",
  "futures-timer",
@@ -230,7 +230,7 @@ dependencies = [
 
 [[package]]
 name = "bluetooth-tui-web"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "bluetooth-driver",

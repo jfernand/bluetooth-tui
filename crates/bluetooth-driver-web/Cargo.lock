@@ -50,7 +50,7 @@ checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da"
 
 [[package]]
 name = "bluetooth-driver"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "futures-util",
  "thiserror",
@@ -60,7 +60,7 @@ dependencies = [
 
 [[package]]
 name = "bluetooth-driver-web"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bluetooth-driver",
  "js-sys",

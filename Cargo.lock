@@ -125,7 +125,7 @@ dependencies = [
 
 [[package]]
 name = "bluetooth-driver"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "futures-util",
  "thiserror 2.0.20",
@@ -135,7 +135,7 @@ dependencies = [
 
 [[package]]
 name = "bluetooth-tui"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "bluetooth-driver",
@@ -148,7 +148,7 @@ dependencies = [
 
 [[package]]
 name = "bluetooth-tui-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bluetooth-driver",
  "futures-timer",

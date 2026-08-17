@@ -10,7 +10,7 @@ keywords = ["bluetooth", "tui", "ratatui"]
 categories = ["gui"]
 
 [dependencies]
-bluetooth-driver = { path = "../bluetooth-driver", version = "0.1.0" }
+bluetooth-driver = { path = "../bluetooth-driver", version = "0.2.0" }
 futures-util = "0.3.34"
 
 # "wasm-bindgen" feature required: without it, futures-timer's Delay

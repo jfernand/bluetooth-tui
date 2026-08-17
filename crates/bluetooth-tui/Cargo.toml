@@ -11,8 +11,8 @@ categories = ["command-line-utilities", "hardware-support"]
 
 [dependencies]
 anyhow = "1.0.104"
-bluetooth-driver = { path = "../bluetooth-driver", version = "0.1.0" }
-bluetooth-tui-core = { path = "../bluetooth-tui-core", version = "0.1.0" }
+bluetooth-driver = { path = "../bluetooth-driver", version = "0.2.0" }
+bluetooth-tui-core = { path = "../bluetooth-tui-core", version = "0.2.0" }
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 futures-util = "0.3.34"
 ratatui = "0.30.2"

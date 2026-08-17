@@ -1,6 +1,6 @@
 [package]
 name = "bluetooth-driver-web"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 # Not `field.workspace = true`: this crate is its own standalone
 # workspace root (see below), so it can't inherit from the main
@@ -18,7 +18,7 @@ categories = ["hardware-support", "wasm"]
 [workspace]
 
 [dependencies]
-bluetooth-driver = { path = "../bluetooth-driver", version = "0.1.0" }
+bluetooth-driver = { path = "../bluetooth-driver", version = "0.2.0" }
 js-sys = "0.3"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"

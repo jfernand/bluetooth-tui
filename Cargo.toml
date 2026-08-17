@@ -16,7 +16,7 @@ members = ["crates/bluetooth-driver", "crates/bluetooth-tui", "crates/bluetooth-
 # the note above) and can't inherit from here, so it repeats these
 # explicitly.
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/jfernand/bluetooth-tui"

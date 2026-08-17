@@ -57,7 +57,8 @@ deliberately **not** members of this workspace (see the comment in the
 root `Cargo.toml`) — they only build for `wasm32-unknown-unknown`, and
 including them would break a plain `cargo check --workspace` for
 everyone. Each is its own standalone single-crate workspace; build
-them from within their own directory.
+them from within their own directory. They provide experimental support 
+for Web Bluetooth API
 
 ## Running the web frontend
 
