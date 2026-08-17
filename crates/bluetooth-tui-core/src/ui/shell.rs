@@ -218,7 +218,7 @@ fn draw_devices<D: BluetoothDriver>(frame: &mut Frame, app: &App<D>, area: Rect)
     frame.render_widget(header_block, rows[1]);
     frame.render_widget(
         Paragraph::new(Line::from(vec![Span::styled(
-            " NAME                     ADDR  P B C T X    RSSI",
+            " NAME                     ADDR P B C T X  RSSI",
             Style::default().fg(theme::TEXT_FAINT),
         )])),
         header_inner,
@@ -262,7 +262,7 @@ fn device_row<Dev: Device>(device: &Dev) -> ListItem<'static> {
 
     let line = Line::from(vec![
         Span::raw(format!(" {name:<24.24} ")),
-        Span::styled(format!("{kind:<4}"), Style::default().fg(theme::TEXT_SECONDARY)),
+        Span::styled(format!("{kind:<5}"), Style::default().fg(theme::TEXT_SECONDARY)),
         flag(device.is_paired(), 'P', theme::AMBER),
         Span::raw(" "),
         flag(device.is_bonded(), 'B', theme::AMBER),
