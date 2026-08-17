@@ -23,6 +23,18 @@
                A monospace font is required, not just a style choice. */
             font-family: ui-monospace, "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
         }
+        /* Each terminal row is a bare <pre> with only `height` set
+           inline - it still carries the browser's default UA
+           stylesheet margin (`margin: 1em 0`, ~13px here). Adjacent
+           rows collapse that into ~13px of extra space *between* them,
+           nearly doubling the real height of every row versus what
+           DomBackend measured and sized the grid for - the whole
+           terminal ends up roughly twice as tall as the viewport, with
+           everything past the halfway point (including the footer)
+           pushed below the fold. */
+        #grid pre {
+            margin: 0;
+        }
     </style>
     <link data-trunk rel="rust" data-bin="bluetooth-tui-web" />
 </head>
