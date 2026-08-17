@@ -79,6 +79,19 @@ async fn run() -> anyhow::Result<()> {
     terminal.draw(|frame| ui::draw(frame, &app))?;
     while let Some(event) = rx.next().await {
         match event {
+            // 's' natively means "start scanning" - there's no
+            // equivalent here (no background scan, see
+            // WebAdapter::start_discovery's doc comment), so it's
+            // repurposed for the nearest analogous action: opening the
+            // browser's native device chooser. Intercepted here rather
+            // than in the shared App::handle_key because
+            // request_new_device() is a WebAdapter-only inherent
+            // method, not part of the Adapter trait - App<D> only
+            // knows D::Adapter generically, and it wouldn't make sense
+            // on that trait anyway (see the doc comment: it's a one-
+            // shot, user-gesture-gated action, nothing like
+            // start_discovery/stop_discovery's shape).
+            WebEvent::Key(Key::Char('s')) => add_device(&mut app).await,
             WebEvent::Key(key) => app.handle_key(key).await,
             WebEvent::Tick => app.on_tick().await,
         }
@@ -89,6 +102,23 @@ async fn run() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+/// Opens the browser's device chooser and adds whatever device the
+/// user picks to the list. Must run directly from a key event handler
+/// (a user gesture) or the browser rejects it outright.
+async fn add_device(app: &mut App<WebBluetoothDriver>) {
+    let result = match app.current_adapter() {
+        Some(adapter) => Some(adapter.request_new_device().await),
+        None => None,
+    };
+    match result {
+        Some(Ok(device)) => {
+            app.devices.push(device);
+        }
+        Some(Err(e)) => app.set_status_err("ADD DEVICE FAILED", &e),
+        None => {}
+    }
 }
 
 /// Translates ratzilla's key codes into `bluetooth-tui-core`'s
